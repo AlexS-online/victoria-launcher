@@ -328,6 +328,14 @@ fun EdgeTouchZone(
                         return@awaitEachGesture
                     }
 
+                    // Scrubbed the letters and let go there, not on an app: nothing was
+                    // chosen, so the list goes away just as it does past either end. A plain
+                    // tap on a letter (no drag) still only places the list.
+                    if (moved && enteredBand) {
+                        currentDismiss()
+                        return@awaitEachGesture
+                    }
+
                     if (!moved) {
                         val doubleTap = currentDoubleTap
                         val previous = state.lastTapUptimeMs
