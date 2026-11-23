@@ -94,7 +94,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -392,7 +394,9 @@ fun AppListScreen(
     var listTopPx by remember { mutableFloatStateOf(0f) }
     DisposableEffect(scrub, listState) {
         scrub.appAt = appAt@{ screenY ->
-            val local = screenY - listTopPx
+            // Item offsets are measured from where the content starts, below the top content
+            // padding; viewportStartOffset is that padding, negated.
+            val local = screenY - listTopPx + listState.layoutInfo.viewportStartOffset
             val item = listState.layoutInfo.visibleItemsInfo
                 .firstOrNull { local >= it.offset && local < it.offset + it.size }
                 ?: return@appAt null
@@ -1323,7 +1327,7 @@ fun AppListScreen(
                         iconSizeDp = iconSizeDp,
                         labelSizeSp = labelSizeSp,
                         isFavorite = favoriteKeys.contains(row.app.key),
-                        hovered = scrub.hoverKey == row.app.key,
+                        hovered = { scrub.hoverKey == row.app.key },
                         menuExpanded = menuForKey == rowKey(row),
                         menuOffset = menuOffset,
                         touchPosition = touchPosition,
@@ -1512,7 +1516,7 @@ private fun AppRow(
     labelSizeSp: Int,
     isFavorite: Boolean,
     /** The finger of an edge gesture is resting on this row. */
-    hovered: Boolean,
+    hovered: () -> Boolean,
     menuExpanded: Boolean,
     menuOffset: DpOffset,
     onLaunch: () -> Unit,
@@ -1548,9 +1552,19 @@ private fun AppRow(
                 }
                 .padding(horizontal = 20.dp)
                 .background(
-                    color = if (pressed || hovered) contentColor.copy(alpha = 0.15f) else Color.Transparent,
+                    color = if (pressed) contentColor.copy(alpha = 0.15f) else Color.Transparent,
                     shape = RoundedCornerShape(18.dp),
                 )
+                // Read while drawing, so the finger moving from row to row repaints one rectangle
+                // instead of recomposing every visible row.
+                .drawBehind {
+                    if (hovered()) {
+                        drawRoundRect(
+                            color = contentColor.copy(alpha = 0.15f),
+                            cornerRadius = CornerRadius(18.dp.toPx()),
+                        )
+                    }
+                }
                 .combinedClickable(
                     interactionSource = interaction,
                     indication = null,
