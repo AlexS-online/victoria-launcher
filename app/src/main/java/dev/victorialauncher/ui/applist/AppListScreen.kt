@@ -76,7 +76,10 @@ import androidx.compose.material3.LocalTextStyle
 import dev.victorialauncher.ui.theme.launcherTextShadow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableFloatStateOf
@@ -368,7 +371,8 @@ fun AppListScreen(
         // Not while a held letter is walking the list: the whole point of that is to read what
         // goes past, and everything that went past was faded out. That is what made it look as
         // though only the held letter's own apps ever scrolled.
-        targetValue = if (scrubLetter != null && scrubbing && dimOthers && !scrub.holdScrolling) {
+        // Not once the finger is over the apps either: it is choosing among them now.
+        targetValue = if (scrubLetter != null && scrubbing && dimOthers && !scrub.holdScrolling && !scrub.onApps) {
             0f
         } else {
             1f
@@ -379,6 +383,27 @@ fun AppListScreen(
     // Where a scrubbed letter is parked. A setting because how far up the screen you can
     // still reach is a fact about the hand and the phone, not something to pick for anyone.
     val sectionTopPx = (viewportHeightPx * sectionTopPercent / 100f).roundToInt()
+
+    // Lets the edge gesture ask which app is under the finger and open it. The gesture outlives
+    // this composition, so it reads the latest model and launch callback rather than this
+    // frame's. y arrives in screen space; the list's own top is measured to bring it home.
+    val currentModel by rememberUpdatedState(displayModel)
+    val currentOnLaunch by rememberUpdatedState(onLaunch)
+    var listTopPx by remember { mutableFloatStateOf(0f) }
+    DisposableEffect(scrub, listState) {
+        scrub.appAt = appAt@{ screenY ->
+            val local = screenY - listTopPx
+            val item = listState.layoutInfo.visibleItemsInfo
+                .firstOrNull { local >= it.offset && local < it.offset + it.size }
+                ?: return@appAt null
+            (currentModel.rows.getOrNull(item.index) as? AppListRow.Entry)?.app
+        }
+        scrub.launchApp = { app -> currentOnLaunch(app) }
+        onDispose {
+            scrub.appAt = null
+            scrub.launchApp = null
+        }
+    }
 
     // The LazyColumn always holds the full list — while scrubbing it's just hidden and
     // pre-scrolled, with the letter's apps drawn over the top. Filtering the rows themselves
@@ -1144,6 +1169,7 @@ fun AppListScreen(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
+                .onGloballyPositioned { listTopPx = it.positionInRoot().y }
                 .graphicsLayer {
                     translationY = stretchProvider()
                     // The mask below blends against this layer alone, so it can take the
@@ -1297,6 +1323,7 @@ fun AppListScreen(
                         iconSizeDp = iconSizeDp,
                         labelSizeSp = labelSizeSp,
                         isFavorite = favoriteKeys.contains(row.app.key),
+                        hovered = scrub.hoverKey == row.app.key,
                         menuExpanded = menuForKey == rowKey(row),
                         menuOffset = menuOffset,
                         touchPosition = touchPosition,
@@ -1484,6 +1511,8 @@ private fun AppRow(
     iconSizeDp: Int,
     labelSizeSp: Int,
     isFavorite: Boolean,
+    /** The finger of an edge gesture is resting on this row. */
+    hovered: Boolean,
     menuExpanded: Boolean,
     menuOffset: DpOffset,
     onLaunch: () -> Unit,
@@ -1519,7 +1548,7 @@ private fun AppRow(
                 }
                 .padding(horizontal = 20.dp)
                 .background(
-                    color = if (pressed) contentColor.copy(alpha = 0.15f) else Color.Transparent,
+                    color = if (pressed || hovered) contentColor.copy(alpha = 0.15f) else Color.Transparent,
                     shape = RoundedCornerShape(18.dp),
                 )
                 .combinedClickable(
