@@ -83,6 +83,8 @@ fun EdgeTouchZone(
     holdScroll: Boolean,
     /** Whether dragging off an end keeps the end letter rather than arming the close (#169). */
     followPastEnds: Boolean = false,
+    /** Whether the finger can carry on from the strip onto the apps and open one by letting go. */
+    releaseToLaunch: Boolean = false,
     /** How much of the very edge is left to the system's own gestures. */
     insetDp: Dp,
     /** How far up from the bottom the strip stops, to leave the corner button its taps. */
@@ -126,7 +128,7 @@ fun EdgeTouchZone(
                         .height((band.heightPx / density).dp)
                 }
             )
-            .pointerInput(letters, band, hapticsEnabled, fromLeft, bandOnly, followPastEnds) {
+            .pointerInput(letters, band, hapticsEnabled, fromLeft, bandOnly, followPastEnds, releaseToLaunch) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     down.consume()
@@ -171,7 +173,7 @@ fun EdgeTouchZone(
                         fingerY = y
                         // Only a finger that has been on the letters can go on to the apps, so
                         // a tap on bare strip is still just a tap.
-                        if (enteredBand) {
+                        if (releaseToLaunch && enteredBand) {
                             val inwardNow = if (fromLeft) x - size.width else -x
                             val next = inwardNow > (if (onApps) ON_APPS_EXIT_DP else ON_APPS_ENTER_DP) * density
                             if (next != onApps) {
@@ -331,7 +333,7 @@ fun EdgeTouchZone(
                     // Scrubbed the letters and let go there, not on an app: nothing was
                     // chosen, so the list goes away just as it does past either end. A plain
                     // tap on a letter (no drag) still only places the list.
-                    if (moved && enteredBand) {
+                    if (releaseToLaunch && moved && enteredBand) {
                         currentDismiss()
                         return@awaitEachGesture
                     }
