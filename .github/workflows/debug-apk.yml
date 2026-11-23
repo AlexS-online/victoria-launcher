@@ -5,6 +5,9 @@ on:
     branches: [release-on-app]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -44,3 +47,19 @@ jobs:
         with:
           name: victoria-launcher-fork
           path: app/build/outputs/apk/release/*.apk
+
+      # The GitHub app does not show workflow artifacts, so the APK also goes to a release
+      # that is replaced on every build: one fixed place to download it from, app or browser.
+      - name: Publish to the fork-latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk victoria-launcher-fork.apk
+          notes="Build of ${GITHUB_SHA::7} from ${GITHUB_REF_NAME}"
+          if gh release view fork-latest >/dev/null 2>&1; then
+            gh release upload fork-latest victoria-launcher-fork.apk --clobber
+            gh release edit fork-latest --notes "$notes" --target "$GITHUB_SHA"
+          else
+            gh release create fork-latest victoria-launcher-fork.apk \
+              --title "Fork build (latest)" --notes "$notes" --target "$GITHUB_SHA" --prerelease
+          fi
