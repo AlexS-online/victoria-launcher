@@ -87,7 +87,7 @@ class ScrubState {
     /** Registered by the list: launches [AppInfo] exactly as tapping its row would. */
     var launchApp: ((AppInfo) -> Unit)? = null
 
-    fun setOnApps(value: Boolean) {
+    fun updateOnApps(value: Boolean) {
         if (onApps != value) onApps = value
         if (!value) hoverKey = null
     }
@@ -138,7 +138,7 @@ class ScrubState {
     fun begin(side: EdgeSide) {
         this.side = side
         active = true
-        setOnApps(false)
+        updateOnApps(false)
         scrubbing = false
         releasing = false
         shift = 0f
@@ -193,7 +193,7 @@ class ScrubState {
     /** Releases the elastic pull back to the strip. Suspends until the spring settles. */
     suspend fun release() {
         holdScrolling = false
-        setOnApps(false)
+        updateOnApps(false)
         active = false
         scrubbing = false
         letter = null
@@ -216,7 +216,7 @@ class ScrubState {
     /** Cancels a scrub without the spring, for dismissals that snap (the HOME key). */
     fun cancel() {
         holdScrolling = false
-        setOnApps(false)
+        updateOnApps(false)
         active = false
         scrubbing = false
         letter = null

@@ -176,7 +176,7 @@ fun EdgeTouchZone(
                             val next = inwardNow > (if (onApps) ON_APPS_EXIT_DP else ON_APPS_ENTER_DP) * density
                             if (next != onApps) {
                                 onApps = next
-                                state.setOnApps(next)
+                                state.updateOnApps(next)
                                 if (next) state.holdScroll(false)
                                 HapticUtil.tick(view, hapticsEnabled)
                             }
