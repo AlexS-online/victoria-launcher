@@ -312,6 +312,13 @@ fun AppListScreen(
     // behind the overlay never sees the letter change. currentY/currentPull stay as
     // function references so their callers read them in the draw phase, not composition.
     val scrubLetter = scrub.letter
+    // The strip and the letter bubble step aside while the finger is choosing among the apps,
+    // and come back when it returns to the edge. Read in the draw phase only.
+    val lettersAlpha = animateFloatAsState(
+        targetValue = if (scrub.onApps) 0f else 1f,
+        animationSpec = tween(150),
+        label = "lettersAlpha",
+    )
     val scrubPlacement = scrub.placement
     val scrubbing = scrub.scrubbing
     val activeSide = scrub.side
@@ -1424,9 +1431,11 @@ fun AppListScreen(
                 ripple = rippleParams,
                 reach = scrubReach,
                 shiftPx = shiftPx,
-                modifier = Modifier.align(
-                    if (activeSide == EdgeSide.LEFT) Alignment.CenterStart else Alignment.CenterEnd
-                ),
+                modifier = Modifier
+                    .align(
+                        if (activeSide == EdgeSide.LEFT) Alignment.CenterStart else Alignment.CenterEnd
+                    )
+                    .graphicsLayer { alpha = lettersAlpha.value },
             )
         }
 
@@ -1464,7 +1473,8 @@ fun AppListScreen(
                             y = ((scrubY() ?: 0f) - halfPx).roundToInt(),
                         )
                     }
-                    .size(bubble),
+                    .size(bubble)
+                    .graphicsLayer { alpha = lettersAlpha.value },
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
