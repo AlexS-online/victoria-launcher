@@ -157,7 +157,6 @@ fun EdgeTouchZone(
                     var lastLetter: Char? = null
                     var lastStripY = down.position.y
                     var fingerY = down.position.y
-                    var hoverKey: String? = null
                     val zoneTopPx = if (bandOnly) band.topPx else 0f
                     val letterHeight = if (letters.isEmpty()) 0f else band.heightPx / letters.size
                     val overshoot = (letterHeight * OFF_STRIP_DISMISS_LETTERS)
@@ -186,10 +185,12 @@ fun EdgeTouchZone(
                         }
                         if (onApps) {
                             armedToClose = false
+                            state.appsFingerY = y
+                            // Against the state's own key, not a copy: the list's auto-scroll
+                            // moves rows under a still finger and updates it too.
                             val hit = state.appAt?.invoke(y)
-                            if (hit?.key != hoverKey) {
-                                hoverKey = hit?.key
-                                state.setHover(hoverKey)
+                            if (hit?.key != state.hoverKey) {
+                                state.setHover(hit?.key)
                                 if (hit != null) HapticUtil.tick(view, hapticsEnabled)
                             }
                             // The strip stays where the last letter left it, drawn out toward

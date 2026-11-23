@@ -215,6 +215,13 @@ private const val COMMIT_FRACTION = 0.4f
  */
 private const val EDGE_STRETCH_DAMPING = 0.55f
 
+/**
+ * With the finger over the apps: how close to the list's top or bottom it has to come before
+ * the list scrolls by itself, and how fast it goes with the finger at the very edge.
+ */
+private const val AUTO_SCROLL_ZONE_DP = 72f
+private const val AUTO_SCROLL_MAX_DP_PER_S = 900f
+
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun AppListScreen(
@@ -766,6 +773,35 @@ fun AppListScreen(
             // the loop and the walk stops for good, a letter or two in, which is exactly how
             // it behaved.
             if (delta > 0f) listState.dispatchRawDelta(delta)
+        }
+    }
+
+    // With the finger over the apps and near the top or bottom of the list, the list scrolls
+    // that way by itself, faster the closer the finger gets, so every app of a letter longer
+    // than the screen can still be reached without letting go. The rows moving under a still
+    // finger change which one it is on, so the highlight is worked out again as they go.
+    val onApps = scrub.onApps
+    LaunchedEffect(onApps) {
+        if (!onApps) return@LaunchedEffect
+        val zonePx = with(density) { AUTO_SCROLL_ZONE_DP.dp.toPx() }
+        val maxSpeedPx = with(density) { AUTO_SCROLL_MAX_DP_PER_S.dp.toPx() }
+        var last = withFrameNanos { it }
+        while (true) {
+            val now = withFrameNanos { it }
+            val seconds = (now - last) / 1_000_000_000f
+            last = now
+            val y = scrub.appsFingerY - listTopPx
+            val height = listState.layoutInfo.viewportSize.height
+            val depth = when {
+                y < zonePx -> -(zonePx - y) / zonePx
+                y > height - zonePx -> (y - (height - zonePx)) / zonePx
+                else -> 0f
+            }.coerceIn(-1f, 1f)
+            if (depth == 0f) continue
+            // Squared, so the edge of the zone creeps and only its far end hurries.
+            // dispatchRawDelta for the same reason the hold walk uses it.
+            listState.dispatchRawDelta(depth * kotlin.math.abs(depth) * maxSpeedPx * seconds)
+            scrub.setHover(scrub.appAt?.invoke(scrub.appsFingerY)?.key)
         }
     }
 

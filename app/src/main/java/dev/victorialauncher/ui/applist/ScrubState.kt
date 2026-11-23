@@ -84,6 +84,13 @@ class ScrubState {
      */
     var appAt: ((Float) -> AppInfo?)? = null
 
+    /**
+     * Where the finger is while [onApps], in screen y, so the list can scroll on its own when
+     * the finger nears its top or bottom. Read once a frame by that scroll, so not snapshot
+     * state: a write per touch event would recompose the list for nothing.
+     */
+    var appsFingerY = 0f
+
     /** Registered by the list: launches [AppInfo] exactly as tapping its row would. */
     var launchApp: ((AppInfo) -> Unit)? = null
 
