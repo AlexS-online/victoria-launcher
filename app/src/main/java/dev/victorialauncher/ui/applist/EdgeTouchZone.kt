@@ -173,9 +173,10 @@ fun EdgeTouchZone(
                         fingerY = y
                         // Only a finger that has been on the letters can go on to the apps, so
                         // a tap on bare strip is still just a tap.
+                        // How far the finger has pulled in toward the middle of the screen.
+                        val inward = if (fromLeft) x - size.width else -x
                         if (releaseToLaunch && enteredBand) {
-                            val inwardNow = if (fromLeft) x - size.width else -x
-                            val next = inwardNow > (if (onApps) ON_APPS_EXIT_DP else ON_APPS_ENTER_DP) * density
+                            val next = inward > (if (onApps) ON_APPS_EXIT_DP else ON_APPS_ENTER_DP) * density
                             if (next != onApps) {
                                 onApps = next
                                 state.updateOnApps(next)
@@ -193,10 +194,9 @@ fun EdgeTouchZone(
                             }
                             // The strip stays where the last letter left it, drawn out toward
                             // the finger; the list stays parked on that letter.
-                            val inwardNow = if (fromLeft) x - size.width else -x
                             state.update(
                                 lastStripY,
-                                inwardNow.coerceIn(0f, MAX_PULL_DP * density),
+                                inward.coerceIn(0f, MAX_PULL_DP * density),
                                 lastLetter,
                                 shiftPx = shiftPx,
                             )
@@ -238,8 +238,6 @@ fun EdgeTouchZone(
                             // something other than what it did a moment ago.
                             HapticUtil.tick(view, hapticsEnabled)
                         }
-                        // How far the finger has pulled in toward the middle of the screen.
-                        val inward = if (fromLeft) x - size.width else -x
                         // No letter while the list is on its way out: placing it at A as
                         // you leave is work nobody asked for and nobody sees.
                         val shownLetter = if (enteredBand && !armedToClose) letters.getOrNull(index) else null
