@@ -440,4 +440,7 @@
     <string name="settings_strip_follows_detail">Dragging past A or Z pushes the letters along with your finger and keeps the list open. Past Z goes to the end of the list</string>
     <string name="settings_release_to_launch">Release to open</string>
     <string name="settings_release_to_launch_detail">Slide off the letters onto the apps and let go on one to open it; letting go anywhere else closes the list</string>
+    <string name="settings_swipe_up_recents">Swipe up for recent apps</string>
+    <string name="settings_swipe_up_recents_detail">Push up past the end of the home screen to see your open apps. Takes the place of swiping up for the app list. Uses the same accessibility service as the pull-down shade</string>
+    <string name="toast_enable_accessibility_recents">Enable Victoria Launcher in Settings → Accessibility to open recent apps</string>
 </resources>

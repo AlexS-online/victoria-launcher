@@ -343,6 +343,7 @@ fun VictoriaNavHost(
     val widgetSidePaddingDp by app.prefs.widgetSidePaddingDp.collectAsState(initial = sidePaddingDp)
     val widgetOffsetXDp by app.prefs.widgetOffsetXDp.collectAsState(initial = 0)
     val swipeUpOpensList by app.prefs.swipeUpOpensList.collectAsState(initial = false)
+    val swipeUpOpensRecents by app.prefs.swipeUpOpensRecents.collectAsState(initial = false)
     val appListSearchEnabled by app.prefs.appListSearchEnabled.collectAsState(initial = false)
     val appListSearchBottom by app.prefs.appListSearchBottom.collectAsState(initial = false)
     val sectionTopPercent by app.prefs.sectionTopPercent.collectAsState(initial = 26)
@@ -551,6 +552,7 @@ fun VictoriaNavHost(
         widgetOffsetXDp = widgetOffsetXDp,
         edgeZoneWidthDp = edgeZoneWidthDp,
         swipeUpOpensAppList = swipeUpOpensList,
+        swipeUpOpensRecents = swipeUpOpensRecents,
         appListSearch = appListSearchEnabled,
         appListSearchBottom = appListSearchBottom,
         sectionTopPercent = sectionTopPercent,
@@ -870,6 +872,7 @@ fun VictoriaNavHost(
                 appListSearchBottom = appListSearchBottom,
                 appListSearchHidden = appListSearchHidden,
                 swipeUpOpensList = swipeUpOpensList,
+                swipeUpOpensRecents = swipeUpOpensRecents,
                 alignment = alignment,
                 appListAlignment = appListAlignment,
                 iconSide = iconSide,
@@ -943,6 +946,7 @@ fun VictoriaNavHost(
                 onSetAppListSearchBottom = { scope.launch { app.prefs.setAppListSearchBottom(it) } },
                 onSetAppListSearchHidden = { scope.launch { app.prefs.setAppListSearchHidden(it) } },
                 onSetSwipeUpOpensList = { scope.launch { app.prefs.setSwipeUpOpensList(it) } },
+                onSetSwipeUpOpensRecents = { scope.launch { app.prefs.setSwipeUpOpensRecents(it) } },
                 quickLaunchLeftLabel = quickLaunchLeftKey?.let { key ->
                     appsByKey[key]?.let { nameOverrides[it.key] ?: it.label }
                 },

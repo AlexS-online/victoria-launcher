@@ -6,8 +6,8 @@ import android.os.Build
 import android.view.accessibility.AccessibilityEvent
 
 /**
- * Only exists so the swipe-down gesture can open the notification shade. Android has no
- * public API for that — reflection into StatusBarManager is blocked on modern builds — and
+ * Only exists so the home screen's gestures can open the notification shade and the recent
+ * apps screen. Android has no public API for those — reflection into StatusBarManager is blocked on modern builds — and
  * `performGlobalAction` is the sanctioned route. The service reads nothing: it ignores every
  * event it receives.
  */
@@ -35,6 +35,10 @@ class VictoriaAccessibilityService : AccessibilityService() {
 
         fun openNotificationShade(): Boolean =
             instance?.performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS) ?: false
+
+        /** The recent apps screen: a launcher that is not the system's own has no other way in. */
+        fun openRecents(): Boolean =
+            instance?.performGlobalAction(GLOBAL_ACTION_RECENTS) ?: false
 
         /** Locking the screen has no public API either; this is the sanctioned route. */
         fun lockScreen(): Boolean {
