@@ -43,6 +43,7 @@ import dev.victorialauncher.TypedKey
 import dev.victorialauncher.VictoriaApp
 import android.widget.Toast
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberUpdatedState
 import dev.victorialauncher.data.IconShape
 import dev.victorialauncher.data.AppFont
 import dev.victorialauncher.data.AppInfo
@@ -67,6 +68,7 @@ import dev.victorialauncher.data.folderIdFromToken
 import dev.victorialauncher.data.stripsOtherProfiles
 import dev.victorialauncher.media.isListenerEnabled
 import dev.victorialauncher.service.SystemUi
+import dev.victorialauncher.ui.common.ICON_PACK_OVERRIDE_PREFIX
 import dev.victorialauncher.ui.common.IconPickerScreen
 import dev.victorialauncher.ui.common.IconStyle
 import dev.victorialauncher.ui.common.LocalIconConfig
@@ -181,8 +183,23 @@ fun VictoriaNavHost(
     // means "this is a first run" when it is read.
     LaunchedEffect(Unit) { app.prefs.ensureInstallMarker() }
 
+    // Read by the callbacks below, which are registered once and would otherwise keep the
+    // values from the first composition.
+    val currentIconPack by rememberUpdatedState(iconPackPackage)
+    val currentOverrides by rememberUpdatedState(iconOverrides)
     DisposableEffect(Unit) {
         val launcherApps = context.getSystemService(LauncherApps::class.java)
+
+        /**
+         * Whether a change to [packages] can show in apps other than their own: an icon pack's
+         * pictures are cached under the apps they dress, so an update to the pack itself, or to
+         * one an override draws from, has to redraw everything.
+         */
+        fun touchesOthers(packages: Set<String>): Boolean =
+            currentIconPack in packages || currentOverrides.values.any { value ->
+                packages.any { value.startsWith("$ICON_PACK_OVERRIDE_PREFIX$it:") }
+            }
+
         /** [packages] null when it is not one app's change: everything's icons are redrawn. */
         fun refresh(packages: Set<String>? = null) {
             scope.launch {
@@ -196,7 +213,7 @@ fun VictoriaNavHost(
                 // An app that ships a new icon in an update changes none of the cache
                 // key's components, so nothing else would invalidate the stale bitmap. Only
                 // that app's, though: the rest are as they were.
-                if (packages == null) clearIconCache() else clearIconCache(packages)
+                if (packages == null || touchesOthers(packages)) clearIconCache() else clearIconCache(packages)
                 reloadApps(state, pass)
             }
         }
