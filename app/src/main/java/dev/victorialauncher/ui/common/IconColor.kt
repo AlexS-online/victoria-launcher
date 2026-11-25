@@ -35,9 +35,20 @@ private const val SAMPLE_PX = 32
 private const val COLORFUL_SHARE = 0.08f
 
 private val colorCache = ConcurrentHashMap<String, Int>()
+private val colorPackage = ConcurrentHashMap<String, String>()
 
 /** Called with the bitmap cache's own clear, for the same reason: an update can change an icon. */
-internal fun clearIconColors() = colorCache.clear()
+internal fun clearIconColors() {
+    colorCache.clear()
+    colorPackage.clear()
+}
+
+internal fun clearIconColors(packages: Set<String>) {
+    colorPackage.filterValues { it in packages }.keys.forEach {
+        colorCache.remove(it)
+        colorPackage.remove(it)
+    }
+}
 
 /**
  * The colour key of every app in [apps], keyed by [AppInfo.key], from the icon as it is shown:
@@ -58,6 +69,7 @@ suspend fun iconColorKeys(
             iconColorKey(resolveDrawable(context, victoriaApp, app, iconPack, override))
         }.getOrDefault(UNKNOWN_ICON_COLOR)
         colorCache[cacheKey] = color
+        colorPackage[cacheKey] = app.packageName
         return color
     }
     return withContext(Dispatchers.Default) {
