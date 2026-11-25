@@ -41,6 +41,7 @@ import dev.victorialauncher.VictoriaApp
 import dev.victorialauncher.data.AppInfo
 import dev.victorialauncher.data.EntryKind
 import dev.victorialauncher.data.IconShape
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.Dispatchers
@@ -75,7 +76,7 @@ private object IconCache {
     }
 
     /** Which package each cached icon belongs to, so one app's icons can go without the rest. */
-    private val packageOf = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val packageOf = ConcurrentHashMap<String, String>()
 
     private fun maxSizeKb(): Int {
         val heapKb = Runtime.getRuntime().maxMemory() / 1024L
@@ -101,9 +102,8 @@ private object IconCache {
     }
 
     /**
-     * Dropped wholesale when a package is added, removed or changed: an app that ships a new
-     * icon in an update keeps none of the key's components, so nothing else would invalidate
-     * the stale bitmap.
+     * Dropped wholesale when a change can reach every icon: a profile appearing or locking, or
+     * an icon pack in use being updated. One app's own change goes through [clearPackages].
      */
     fun clear() {
         cache.evictAll()
