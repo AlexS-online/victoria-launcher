@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package dev.victorialauncher.ui.applist
 
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.offset
@@ -232,7 +236,26 @@ fun EdgeScrubber(
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(text = c.toString(), fontSize = 13.sp, color = Color.White)
+                val swatch = scrubSwatch(c)
+                if (swatch == null) {
+                    Text(text = c.toString(), fontSize = 13.sp, color = Color.White)
+                } else {
+                    // A stretch of one continuous bar: each cell runs from halfway toward the
+                    // colour above to halfway toward the one below, so the cells meet without
+                    // a seam and the strip reads as a single gradient that still bends.
+                    val above = scrubSwatch(letters.getOrNull(index - 1) ?: c) ?: swatch
+                    val below = scrubSwatch(letters.getOrNull(index + 1) ?: c) ?: swatch
+                    Box(
+                        modifier = Modifier
+                            .width(8.dp)
+                            .height(with(LocalDensity.current) { spacingPx.toDp() })
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(lerp(above, swatch, 0.5f), swatch, lerp(swatch, below, 0.5f))
+                                )
+                            ),
+                    )
+                }
             }
         }
     }
