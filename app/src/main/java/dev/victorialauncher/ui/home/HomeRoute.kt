@@ -79,6 +79,7 @@ import dev.victorialauncher.data.folderToken
 import dev.victorialauncher.media.NowPlayingBus
 import dev.victorialauncher.media.isListenerEnabled
 import dev.victorialauncher.service.SystemUi
+import dev.victorialauncher.service.VictoriaAccessibilityService
 import dev.victorialauncher.ui.applist.AppListModel
 import dev.victorialauncher.ui.applist.AppListScreen
 import dev.victorialauncher.ui.applist.BandEditOverlay
@@ -787,6 +788,16 @@ fun HomeRoute(
                 onEditScrubBand = { liveBand = band; bandEditMode = true },
                 centerFavorites = settings.centerFavorites,
                 swipeUpOpensAppList = settings.swipeUpOpensAppList,
+                swipeUpOpensRecents = settings.swipeUpOpensRecents,
+                onOpenRecents = {
+                    if (!VictoriaAccessibilityService.openRecents()) {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.toast_enable_accessibility_recents),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                },
                 onSwipeUpDrag = { total, delta ->
                     appListVisible = true
                     scope.launch { openAnim.snapTo(total.coerceAtMost(openDistancePx)) }
@@ -1178,6 +1189,7 @@ data class HomeSettings(
     val widgetOffsetXDp: Int,
     val edgeZoneWidthDp: Int,
     val swipeUpOpensAppList: Boolean,
+    val swipeUpOpensRecents: Boolean,
     val appListSearch: Boolean,
     val appListSearchBottom: Boolean,
     val sectionTopPercent: Int,

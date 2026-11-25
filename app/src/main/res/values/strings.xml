@@ -447,4 +447,7 @@
     <string name="settings_release_to_launch_detail">Slide off the letters onto the apps and let go on one to open it; letting go anywhere else closes the list</string>
     <string name="settings_sort_by_color">Sort by icon colour</string>
     <string name="settings_sort_by_color_detail">Lists the apps by the colour of their icons, with a colour strip in place of A–Z: the rainbow, then white to black</string>
+    <string name="settings_swipe_up_recents">Swipe up for recent apps</string>
+    <string name="settings_swipe_up_recents_detail">Push up past the end of the home screen to see your open apps. Takes the place of swiping up for the app list. Uses the same accessibility service as the pull-down shade</string>
+    <string name="toast_enable_accessibility_recents">Enable Victoria Launcher in Settings → Accessibility to open recent apps</string>
 </resources>
