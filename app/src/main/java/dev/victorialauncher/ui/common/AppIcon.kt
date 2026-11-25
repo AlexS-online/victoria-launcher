@@ -41,6 +41,7 @@ import dev.victorialauncher.VictoriaApp
 import dev.victorialauncher.data.AppInfo
 import dev.victorialauncher.data.EntryKind
 import dev.victorialauncher.data.IconShape
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.Dispatchers
@@ -68,7 +69,14 @@ private object IconCache {
         // Reported in KB so the running total cannot overflow an Int.
         override fun sizeOf(key: String, value: ImageBitmap): Int =
             ((value.width.toLong() * value.height.toLong() * 4L) / 1024L).toInt().coerceAtLeast(1)
+
+        override fun entryRemoved(evicted: Boolean, key: String, oldValue: ImageBitmap, newValue: ImageBitmap?) {
+            if (newValue == null) packageOf.remove(key)
+        }
     }
+
+    /** Which package each cached icon belongs to, so one app's icons can go without the rest. */
+    private val packageOf = ConcurrentHashMap<String, String>()
 
     private fun maxSizeKb(): Int {
         val heapKb = Runtime.getRuntime().maxMemory() / 1024L
@@ -76,12 +84,26 @@ private object IconCache {
     }
 
     fun get(key: String): ImageBitmap? = cache.get(key)
-    fun put(key: String, value: ImageBitmap) = cache.put(key, value)
+    fun put(key: String, value: ImageBitmap, packageName: String) {
+        packageOf[key] = packageName
+        cache.put(key, value)
+    }
 
     /**
-     * Dropped wholesale when a package is added, removed or changed: an app that ships a new
-     * icon in an update keeps none of the key's components, so nothing else would invalidate
-     * the stale bitmap.
+     * Only these packages' icons. Apps republish their shortcuts all the time, a messenger on
+     * every new chat, and each time used to empty the whole cache: coming home then meant
+     * rasterising every favourite again, on the main thread, before the screen could draw.
+     */
+    fun clearPackages(packages: Set<String>) {
+        val stale = packageOf.filterValues { it in packages }.keys
+        if (stale.isEmpty()) return
+        stale.forEach { cache.remove(it) }
+        generation.value++
+    }
+
+    /**
+     * Dropped wholesale when a change can reach every icon: a profile appearing or locking, or
+     * an icon pack in use being updated. One app's own change goes through [clearPackages].
      */
     fun clear() {
         cache.evictAll()
@@ -97,6 +119,9 @@ private object IconCache {
 }
 
 fun clearIconCache() = IconCache.clear()
+
+/** Drops only [packages]' icons, for a change that concerns those apps alone. */
+fun clearIconCache(packages: Set<String>) = IconCache.clearPackages(packages)
 
 /** Changes whenever the icon cache has been emptied. */
 val iconCacheGeneration: StateFlow<Int> get() = IconCache.generation
@@ -151,7 +176,7 @@ suspend fun warmIconCache(
         runCatching {
             val drawable = resolveDrawable(context, victoriaApp, app, iconPack, override)
             val bitmap = renderIcon(drawable, px, own.shape, own.themed, own.background, own.foreground)
-            IconCache.put(key, bitmap.asImageBitmap())
+            IconCache.put(key, bitmap.asImageBitmap(), app.packageName)
         }
     }
 
@@ -250,7 +275,7 @@ fun AppIcon(app: AppInfo, sizeDp: Int, modifier: Modifier = Modifier) {
             val drawable = resolveDrawable(context, victoriaApp, app, iconPackPackage, overrideValue)
             renderIcon(drawable, px, style.shape, style.themed, style.background, style.foreground)
                 .asImageBitmap()
-                .also { IconCache.put(cacheKey, it) }
+                .also { IconCache.put(cacheKey, it, app.packageName) }
         }.getOrNull()
     }
 

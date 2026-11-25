@@ -44,6 +44,7 @@ import androidx.navigation.compose.rememberNavController
 import dev.victorialauncher.TypedKey
 import dev.victorialauncher.VictoriaApp
 import android.widget.Toast
+import androidx.compose.runtime.rememberUpdatedState
 import dev.victorialauncher.data.IconShape
 import dev.victorialauncher.data.AppFont
 import dev.victorialauncher.data.AppInfo
@@ -68,6 +69,7 @@ import dev.victorialauncher.data.folderIdFromToken
 import dev.victorialauncher.data.stripsOtherProfiles
 import dev.victorialauncher.media.isListenerEnabled
 import dev.victorialauncher.service.SystemUi
+import dev.victorialauncher.ui.common.ICON_PACK_OVERRIDE_PREFIX
 import dev.victorialauncher.ui.common.IconPickerScreen
 import dev.victorialauncher.ui.common.IconStyle
 import dev.victorialauncher.ui.common.LocalIconConfig
@@ -181,9 +183,25 @@ fun VictoriaNavHost(
     // means "this is a first run" when it is read.
     LaunchedEffect(Unit) { app.prefs.ensureInstallMarker() }
 
+    // Read by the callbacks below, which are registered once and would otherwise keep the
+    // values from the first composition.
+    val currentIconPack by rememberUpdatedState(iconPackPackage)
+    val currentOverrides by rememberUpdatedState(iconOverrides)
     DisposableEffect(Unit) {
         val launcherApps = context.getSystemService(LauncherApps::class.java)
-        fun refresh() {
+
+        /**
+         * Whether a change to [packages] can show in apps other than their own: an icon pack's
+         * pictures are cached under the apps they dress, so an update to the pack itself, or to
+         * one an override draws from, has to redraw everything.
+         */
+        fun touchesOthers(packages: Set<String>): Boolean =
+            currentIconPack in packages || currentOverrides.values.any { value ->
+                packages.any { value.startsWith("$ICON_PACK_OVERRIDE_PREFIX$it:") }
+            }
+
+        /** [packages] null when it is not one app's change: everything's icons are redrawn. */
+        fun refresh(packages: Set<String>? = null) {
             scope.launch {
                 // Taken before the read, so anything already enumerating is superseded by the
                 // moment this pass looked rather than by the moment it finished.
@@ -193,8 +211,9 @@ fun VictoriaNavHost(
                 val state = withContext(Dispatchers.Default) { app.appRepository.privateSpace() }
                 adoptPrivateSpace(state, pass)
                 // An app that ships a new icon in an update changes none of the cache
-                // key's components, so nothing else would invalidate the stale bitmap.
-                clearIconCache()
+                // key's components, so nothing else would invalidate the stale bitmap. Only
+                // that app's, though: the rest are as they were.
+                if (packages == null || touchesOthers(packages)) clearIconCache() else clearIconCache(packages)
                 reloadApps(state, pass)
             }
         }
@@ -203,20 +222,20 @@ fun VictoriaNavHost(
         // only ever describe the profile we run in, so an app installed into a work profile or
         // a private space would never reach the list.
         val callback = object : LauncherApps.Callback() {
-            override fun onPackageAdded(packageName: String?, user: UserHandle?) = refresh()
-            override fun onPackageRemoved(packageName: String?, user: UserHandle?) = refresh()
-            override fun onPackageChanged(packageName: String?, user: UserHandle?) = refresh()
-            override fun onPackagesAvailable(names: Array<out String>?, user: UserHandle?, replacing: Boolean) = refresh()
-            override fun onPackagesUnavailable(names: Array<out String>?, user: UserHandle?, replacing: Boolean) = refresh()
-            override fun onPackagesSuspended(names: Array<out String>?, user: UserHandle?) = refresh()
-            override fun onPackagesUnsuspended(names: Array<out String>?, user: UserHandle?) = refresh()
+            override fun onPackageAdded(packageName: String?, user: UserHandle?) = refresh(packageName?.let(::setOf))
+            override fun onPackageRemoved(packageName: String?, user: UserHandle?) = refresh(packageName?.let(::setOf))
+            override fun onPackageChanged(packageName: String?, user: UserHandle?) = refresh(packageName?.let(::setOf))
+            override fun onPackagesAvailable(names: Array<out String>?, user: UserHandle?, replacing: Boolean) = refresh(names?.toSet())
+            override fun onPackagesUnavailable(names: Array<out String>?, user: UserHandle?, replacing: Boolean) = refresh(names?.toSet())
+            override fun onPackagesSuspended(names: Array<out String>?, user: UserHandle?) = refresh(names?.toSet())
+            override fun onPackagesUnsuspended(names: Array<out String>?, user: UserHandle?) = refresh(names?.toSet())
             // A shortcut can be added, renamed, re-iconed or switched off while we are
             // showing it, none of which is a package change.
             override fun onShortcutsChanged(
                 packageName: String,
                 shortcuts: MutableList<ShortcutInfo>,
                 user: UserHandle,
-            ) = refresh()
+            ) = refresh(setOf(packageName))
         }
         runCatching { launcherApps.registerCallback(callback) }
 
