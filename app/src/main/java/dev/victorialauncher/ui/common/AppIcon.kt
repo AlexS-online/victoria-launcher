@@ -91,7 +91,7 @@ private object IconCache {
     /**
      * Only these packages' icons. Apps republish their shortcuts all the time, a messenger on
      * every new chat, and each time used to empty the whole cache: coming home then meant
-     * rasterising every favourite again, on the main thread, before the screen could draw.
+     * rasterising every favorite again, on the main thread, before the screen could draw.
      */
     fun clearPackages(packages: Set<String>) {
         val stale = packageOf.filterValues { it in packages }.keys
