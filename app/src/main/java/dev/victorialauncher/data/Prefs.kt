@@ -213,6 +213,7 @@ class Prefs(private val context: Context) {
         val WIDGET_SIDE_PADDING_DP = intPreferencesKey("widget_side_padding_dp")
         val WIDGET_OFFSET_X_DP = intPreferencesKey("widget_offset_x_dp")
         val SWIPE_UP_OPENS_LIST = booleanPreferencesKey("swipe_up_opens_list")
+        val SWIPE_UP_OPENS_RECENTS = booleanPreferencesKey("swipe_up_opens_recents")
         val APPLIST_SEARCH_ENABLED = booleanPreferencesKey("applist_search_enabled")
         val APPLIST_SEARCH_BOTTOM = booleanPreferencesKey("applist_search_bottom")
         val APPLIST_SEARCH_HIDDEN = booleanPreferencesKey("applist_search_hidden")
@@ -618,6 +619,10 @@ class Prefs(private val context: Context) {
     /** Opening the app list by swiping up from the home screen. */
     val swipeUpOpensList: Flow<Boolean> =
         data.map { it[Keys.SWIPE_UP_OPENS_LIST] ?: false }.distinctUntilChanged()
+
+    /** Whether pushing up past the end of the home screen opens the system's recent apps. */
+    val swipeUpOpensRecents: Flow<Boolean> =
+        data.map { it[Keys.SWIPE_UP_OPENS_RECENTS] ?: false }.distinctUntilChanged()
 
     val appListSearchEnabled: Flow<Boolean> =
         data.map { it[Keys.APPLIST_SEARCH_ENABLED] ?: false }.distinctUntilChanged()
@@ -1356,6 +1361,10 @@ class Prefs(private val context: Context) {
 
     suspend fun setSwipeUpOpensList(v: Boolean) {
         context.dataStore.edit { it[Keys.SWIPE_UP_OPENS_LIST] = v }
+    }
+
+    suspend fun setSwipeUpOpensRecents(v: Boolean) {
+        context.dataStore.edit { it[Keys.SWIPE_UP_OPENS_RECENTS] = v }
     }
 
     suspend fun setAppListSearchEnabled(v: Boolean) {

@@ -457,5 +457,8 @@
     <string name="settings_release_to_launch_detail">Уведите палец с букв на приложения и отпустите его на нужном, чтобы открыть</string>
     <string name="settings_sort_by_color">Сортировать по цвету иконок</string>
     <string name="settings_sort_by_color_detail">Приложения идут по цвету иконок, а вместо букв A–Z — цветная полоса: радуга, затем от белого к чёрному</string>
+    <string name="settings_swipe_up_recents">Свайп вверх — недавние приложения</string>
+    <string name="settings_swipe_up_recents_detail">Смахните вверх за нижнюю границу домашнего экрана, чтобы увидеть открытые приложения. Заменяет открытие меню приложений свайпом вверх. Нужна та же служба специальных возможностей, что и для шторки</string>
+    <string name="toast_enable_accessibility_recents">Включите Victoria Launcher в Настройках → Специальные возможности для открытия недавних приложений</string>
 </resources>
 

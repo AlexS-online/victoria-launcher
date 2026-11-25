@@ -280,6 +280,9 @@ fun HomeScreen(
     onEditScrubBand: () -> Unit,
     centerFavorites: Boolean,
     swipeUpOpensAppList: Boolean,
+    /** Pushing up past the end opens the system's recent apps instead (wins over the list). */
+    swipeUpOpensRecents: Boolean = false,
+    onOpenRecents: () -> Unit = {},
     /** Total distance dragged up past the end, and this frame's share of it. */
     onSwipeUpDrag: (total: Float, delta: Float) -> Unit,
     onSwipeUpEnd: (velocity: Float) -> Unit,
@@ -504,6 +507,7 @@ fun HomeScreen(
     var rawPullDown by remember { mutableFloatStateOf(0f) }
     var rawPullUp by remember { mutableFloatStateOf(0f) }
     var pullActionFired by remember { mutableStateOf(false) }
+    var recentsFired by remember { mutableStateOf(false) }
     var peekFired by remember { mutableStateOf(false) }
 
 
@@ -655,6 +659,7 @@ fun HomeScreen(
                     rawPullDown = 0f
                     rawPullUp = 0f
                     pullActionFired = false
+                    recentsFired = false
                     peekFired = false
                 },
                 state = rememberDraggableState { delta ->
@@ -673,7 +678,14 @@ fun HomeScreen(
                     // The mirror of the pull-down, measured from the bottom of the stack.
                     // Reported as it happens rather than fired once at a threshold, so the
                     // list can come in under the finger instead of appearing fully formed.
-                    if (swipeUpOpensAppList && delta < 0f && offsetY.value <= minOffset + 2f) {
+                    if (swipeUpOpensRecents && delta < 0f && offsetY.value <= minOffset + 2f) {
+                        // Same depth as the pull-down that opens the shade, fired once.
+                        rawPullUp -= delta
+                        if (!recentsFired && rawPullUp > deepPullPx) {
+                            recentsFired = true
+                            onOpenRecents()
+                        }
+                    } else if (swipeUpOpensAppList && delta < 0f && offsetY.value <= minOffset + 2f) {
                         rawPullUp -= delta
                         onSwipeUpDrag(rawPullUp, -delta)
                     }
@@ -688,10 +700,16 @@ fun HomeScreen(
                     if (!pullActionFired && rawPullDown > peekPullPx && velocity > 2200f) {
                         onExpandShade()
                     }
-                    if (swipeUpOpensAppList && rawPullUp > 0f) onSwipeUpEnd(velocity)
+                    // A short fast flick counts too, as it does for the shade.
+                    if (swipeUpOpensRecents) {
+                        if (!recentsFired && rawPullUp > peekPullPx && velocity < -2200f) onOpenRecents()
+                    } else if (swipeUpOpensAppList && rawPullUp > 0f) {
+                        onSwipeUpEnd(velocity)
+                    }
                     rawPullDown = 0f
                     rawPullUp = 0f
                     pullActionFired = false
+                    recentsFired = false
                     peekFired = false
 
                     val decay = exponentialDecay<Float>(frictionMultiplier = 1.6f)

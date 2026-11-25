@@ -157,6 +157,7 @@ fun SettingsScreen(
     appListSearchBottom: Boolean,
     appListSearchHidden: Boolean,
     swipeUpOpensList: Boolean,
+    swipeUpOpensRecents: Boolean,
     alignment: HomeAlignment,
     appListAlignment: HomeAlignment,
     iconSide: IconSide,
@@ -265,6 +266,7 @@ fun SettingsScreen(
     onSetSortByUsage: (Boolean) -> Unit,
     onSetSortByIconColor: (Boolean) -> Unit,
     onSetSwipeUpOpensList: (Boolean) -> Unit,
+    onSetSwipeUpOpensRecents: (Boolean) -> Unit,
     onSetAppListSearch: (Boolean) -> Unit,
     onSetAppListSearchBottom: (Boolean) -> Unit,
     onSetAppListSearchHidden: (Boolean) -> Unit,
@@ -857,6 +859,13 @@ fun SettingsScreen(
                 label = stringResource(R.string.settings_swipe_up_list),
                 detail = stringResource(R.string.settings_swipe_up_list_detail),
                 checked = swipeUpOpensList, onCheckedChange = onSetSwipeUpOpensList,
+            )
+        },
+        SettingsEntry(SettingsSection.GESTURES, stringResource(R.string.settings_swipe_up_recents), "swipe up recent apps overview multitask") {
+            SwitchRowWithDetail(
+                label = stringResource(R.string.settings_swipe_up_recents),
+                detail = stringResource(R.string.settings_swipe_up_recents_detail),
+                checked = swipeUpOpensRecents, onCheckedChange = onSetSwipeUpOpensRecents,
             )
         },
         SettingsEntry(SettingsSection.GESTURES, stringResource(R.string.settings_swipe_shortcuts), "swipe shortcuts") {
