@@ -345,8 +345,13 @@ fun EdgeTouchZone(
                         return@awaitEachGesture
                     }
 
-                    // Let go on the letters, release to open or not, the list stays where it was
-                    // put, so an app just off screen can still be scrolled to and tapped (#177).
+                    // Scrubbed the letters and let go there, not on an app: nothing was
+                    // chosen, so the list goes away just as it does past either end. A plain
+                    // tap on a letter (no drag) still only places the list.
+                    if (releaseToLaunch && moved && enteredBand) {
+                        currentDismiss()
+                        return@awaitEachGesture
+                    }
 
                     if (!moved) {
                         val doubleTap = currentDoubleTap
