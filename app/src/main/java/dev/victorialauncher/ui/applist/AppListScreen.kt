@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package dev.victorialauncher.ui.applist
 
+import android.util.Log
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -786,8 +787,17 @@ fun AppListScreen(
             val info = listState.layoutInfo
             val total = info.totalItemsCount
             if (total == 0) return@collect
-            val row = target.row.toInt().coerceIn(0, total - 1)
-            val within = (target.row - row).coerceIn(0f, 1f)
+            // The strip's last cell runs to the end of the model's rows; anything the list adds
+            // after them (the settings row) is stretched into it, so its bottom is the list's.
+            val lastStart = displayModel.letterRows.lastOrNull()?.first
+            val modelEnd = displayModel.rows.size
+            val position = if (lastStart != null && total > modelEnd && modelEnd > lastStart && target.row > lastStart) {
+                lastStart + (target.row - lastStart) * (total - lastStart) / (modelEnd - lastStart)
+            } else {
+                target.row
+            }
+            val row = position.toInt().coerceIn(0, total - 1)
+            val within = (position - row).coerceIn(0f, 1f)
             // That row's own height when it is on screen, else what rows on screen average.
             val visible = info.visibleItemsInfo
             val rowPx = visible.firstOrNull { it.index == row }?.size?.toFloat()
@@ -795,10 +805,24 @@ fun AppListScreen(
             val top = info.beforeContentPadding
             val run = (info.viewportSize.height - info.afterContentPadding - top).coerceAtLeast(0)
             val offset = ScrubberGeometry.smoothScrollOffset(within, rowPx, target.stripFraction, run.toFloat())
-            // A negative offset is the row sitting lower than the top: placed at the top and
-            // then let back down by the difference, all before the next frame is drawn.
-            listState.scrollToItem(row, offset.coerceAtLeast(0))
-            if (offset < 0) listState.dispatchRawDelta(offset.toFloat())
+            // A negative offset is the row sitting that far below the top. Done as one scroll
+            // to an earlier row rather than a scroll to this one and a step back: near the end
+            // the first is cut short by the end of the list and the step back then overshoots,
+            // which threw the list up and kept it from ever reaching the bottom. Scrolled to
+            // the row that far above, the end of the list stops it exactly where it should.
+            // Those rows are the ones on screen above the finger, so their sizes are known.
+            fun sizeOf(index: Int): Float =
+                visible.firstOrNull { it.index == index }?.size?.toFloat() ?: rowPx
+            var anchorRow = row
+            var above = 0f
+            val need = (-offset).toFloat()
+            while (anchorRow > 0 && above < need) {
+                anchorRow--
+                above += sizeOf(anchorRow)
+            }
+            val anchorOffset = if (offset >= 0) offset else (above - need).toInt().coerceAtLeast(0)
+            listState.scrollToItem(anchorRow, anchorOffset)
+            Log.d(SCRUB_LOG, "f=${target.stripFraction} row=${target.row} -> $anchorRow+$anchorOffset first=${listState.firstVisibleItemIndex}+${listState.firstVisibleItemScrollOffset}")
         }
     }
 
@@ -2033,3 +2057,5 @@ private fun SearchField(
             ),
     )
 }
+
+private const val SCRUB_LOG = "VictoriaScrub"

@@ -61,11 +61,12 @@ data class AppListModel(
 
     /**
      * The rows each letter spans, from its own first row (its header, when there are headers)
-     * up to the next letter's, the last one up to where the alphabet ends. Smooth scrubbing
+     * up to the next letter's. The last one runs to the end of the list, sections after the
+     * alphabet included, so the bottom of the strip is the bottom of the list. Smooth scrubbing
      * sizes the strip's cells by these and scrolls through them.
      */
     val letterRows: List<IntRange> = letterIndex.mapIndexed { i, (_, start) ->
-        val end = letterIndex.getOrNull(i + 1)?.second ?: tailStart
+        val end = letterIndex.getOrNull(i + 1)?.second ?: rows.size
         start until end.coerceAtLeast(start + 1)
     }
 }
