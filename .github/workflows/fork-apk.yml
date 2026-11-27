@@ -2,7 +2,7 @@ name: Fork APK
 
 on:
   push:
-    branches: [fork-main]
+    branches: [fork-main, smooth-scrub]
   workflow_dispatch:
 
 permissions:
