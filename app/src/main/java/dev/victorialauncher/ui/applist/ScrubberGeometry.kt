@@ -51,7 +51,7 @@ object ScrubberGeometry {
         return ScrubBand(top, wanted)
     }
 
-    /** Screen-space center of the letter at [index]. */
+    /** Screen-space center of the letter at [index], for a strip of equal cells. */
     fun letterCenterY(index: Int, topPx: Float, heightPx: Float, count: Int): Float {
         if (count <= 0) return topPx
         val spacing = heightPx / count
@@ -68,5 +68,66 @@ data class ScrubBand(val topPx: Float, val heightPx: Float) {
             topPx = viewportHeightPx * ScrubberGeometry.FALLBACK_TOP_FRACTION,
             heightPx = viewportHeightPx * ScrubberGeometry.FALLBACK_HEIGHT_FRACTION,
         )
+    }
+}
+
+/**
+ * How the strip's height is shared between its letters (or color steps).
+ *
+ * Equal cells made the strip scroll in jerks of unlike length: a letter holding forty apps and
+ * one holding two each got the same stretch of finger travel. Here each cell is as tall as the
+ * apps it stands for, so a finger moving at a steady pace moves the list at a steady pace.
+ * [bounds] are the cell edges as fractions of the band, from 0 to 1.
+ */
+class ScrubLayout private constructor(private val bounds: FloatArray) {
+    val count: Int get() = bounds.size - 1
+
+    /** The cell [y] falls in, clamped to the band's ends. */
+    fun indexForY(y: Float, topPx: Float, heightPx: Float): Int {
+        if (count <= 0 || heightPx <= 0f) return 0
+        val f = ((y - topPx) / heightPx).coerceIn(0f, 1f)
+        var lo = 0
+        var hi = count - 1
+        while (lo < hi) {
+            val mid = (lo + hi + 1) ushr 1
+            if (bounds[mid] <= f) lo = mid else hi = mid - 1
+        }
+        return lo
+    }
+
+    /** How far down cell [index] [y] is, 0 at its top edge to 1 at its bottom. */
+    fun fractionIn(index: Int, y: Float, topPx: Float, heightPx: Float): Float {
+        if (count <= 0 || heightPx <= 0f) return 0f
+        val i = index.coerceIn(0, count - 1)
+        val span = (bounds[i + 1] - bounds[i]) * heightPx
+        if (span <= 0f) return 0f
+        return ((y - topPx - bounds[i] * heightPx) / span).coerceIn(0f, 1f)
+    }
+
+    fun topY(index: Int, topPx: Float, heightPx: Float): Float = topPx + bounds[index] * heightPx
+
+    fun bottomY(index: Int, topPx: Float, heightPx: Float): Float = topPx + bounds[index + 1] * heightPx
+
+    fun centerY(index: Int, topPx: Float, heightPx: Float): Float =
+        (topY(index, topPx, heightPx) + bottomY(index, topPx, heightPx)) / 2f
+
+    companion object {
+        /** Equal cells, when nothing is known about what the letters hold. */
+        fun uniform(count: Int) = ScrubLayout(FloatArray(count + 1) { if (count == 0) 0f else it / count.toFloat() })
+
+        /** One cell per weight, tall in proportion to it. Falls back to equal cells if unusable. */
+        fun of(weights: List<Float>?, count: Int): ScrubLayout {
+            if (weights == null || weights.size != count || count == 0) return uniform(count)
+            val total = weights.sum()
+            if (!(total > 0f)) return uniform(count)
+            val b = FloatArray(count + 1)
+            var acc = 0f
+            for (i in 0 until count) {
+                b[i] = acc / total
+                acc += weights[i].coerceAtLeast(0f)
+            }
+            b[count] = 1f
+            return ScrubLayout(b)
+        }
     }
 }

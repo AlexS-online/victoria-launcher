@@ -1046,6 +1046,7 @@ fun HomeRoute(
         if (showIdleStripNow) {
             EdgeScrubber(
                 letters = listModel.letters,
+                weights = listModel.letterWeights,
                 scrubY = { null },
                 pullPx = { 0f },
                 band = band,
@@ -1177,6 +1178,7 @@ fun HomeRoute(
                     insetDp = insetDp.dp,
                     bottomKeepOut = keepOut,
                     letters = listModel.letters,
+                    weights = listModel.letterWeights,
                     band = band,
                     bandOnly = settings.edgeZoneBandOnly,
                     holdScroll = settings.holdScroll,

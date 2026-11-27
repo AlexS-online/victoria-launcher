@@ -135,6 +135,8 @@ fun EdgeScrubber(
     reach: Float = 1f,
     /** How far a finger run off an end has pushed the column, read in the draw phase (#169). */
     shiftPx: () -> Float = { 0f },
+    /** How tall each letter's cell is, relative to the others; null for equal cells. */
+    weights: List<Float>? = null,
 ) {
     if (letters.isEmpty()) return
     val density = LocalDensity.current.density
@@ -143,10 +145,9 @@ fun EdgeScrubber(
     val sigmaPx = 2.6f * spacingPx
     val bellPx = BELL_AMPLITUDE_DP * reach * density
 
-    val centerYs = remember(letters.size, band.topPx, band.heightPx) {
-        FloatArray(letters.size) {
-            ScrubberGeometry.letterCenterY(it, band.topPx, band.heightPx, letters.size)
-        }
+    val layout = remember(weights, letters.size) { ScrubLayout.of(weights, letters.size) }
+    val centerYs = remember(layout, band.topPx, band.heightPx) {
+        FloatArray(letters.size) { layout.centerY(it, band.topPx, band.heightPx) }
     }
     val sim = remember(letters.size) { RippleString(letters.size) }
     // The bulge is worked out against the column where it has been pushed to, so it stays on
@@ -198,6 +199,8 @@ fun EdgeScrubber(
         ColorRibbon(
             swatches = remember(letters) { letters.map { scrubSwatch(it)!! } },
             centerYs = centerYs,
+            topPx = band.topPx,
+            bottomPx = band.bottomPx,
             spacingPx = spacingPx,
             sigmaPx = sigmaPx,
             bellPx = bellPx,
@@ -230,6 +233,7 @@ fun EdgeScrubber(
             Box(
                 modifier = Modifier
                     .align(if (side == EdgeSide.LEFT) Alignment.TopStart else Alignment.TopEnd)
+                    // Centered on its own cell; cells differ in height but the glyph does not.
                     .offset { IntOffset(0, (centerY - spacingPx / 2f).roundToInt()) }
                     .width(20.dp)
                     .graphicsLayer {
@@ -278,6 +282,8 @@ private const val RIBBON_WIDTH_DP = 8f
 private fun ColorRibbon(
     swatches: List<Color>,
     centerYs: FloatArray,
+    topPx: Float,
+    bottomPx: Float,
     spacingPx: Float,
     sigmaPx: Float,
     bellPx: Float,
@@ -314,10 +320,17 @@ private fun ColorRibbon(
         // Catmull-Rom through the ripple's samples, so the wave between them is a curve too.
         fun rippleAt(y: Float): Float {
             val samples = u ?: return 0f
-            val f = ((y - centerYs[0]) / spacingPx).coerceIn(0f, (n - 1).toFloat())
-            val i = f.toInt().coerceAtMost(n - 2).coerceAtLeast(0)
             if (n == 1) return samples[0]
-            val t = f - i
+            // Steps are not all the same height, so where y falls between two centers is
+            // found against the centers themselves.
+            var lo = 0
+            var hi = n - 2
+            while (lo < hi) {
+                val mid = (lo + hi + 1) ushr 1
+                if (centerYs[mid] <= y) lo = mid else hi = mid - 1
+            }
+            val i = lo
+            val t = ((y - centerYs[i]) / (centerYs[i + 1] - centerYs[i])).coerceIn(0f, 1f)
             val p0 = samples[(i - 1).coerceAtLeast(0)]
             val p1 = samples[i]
             val p2 = samples[i + 1]
@@ -336,8 +349,8 @@ private fun ColorRibbon(
         val cellW = 20.dp.toPx()
         val restX = if (side == EdgeSide.LEFT) (cellW - barW) / 2f else size.width - (cellW + barW) / 2f
         val dir = if (side == EdgeSide.LEFT) 1f else -1f
-        val top = centerYs[0] - spacingPx / 2f
-        val bottom = centerYs[n - 1] + spacingPx / 2f
+        val top = topPx
+        val bottom = bottomPx
         val step = RIBBON_STEP_DP.dp.toPx()
 
         path.reset()

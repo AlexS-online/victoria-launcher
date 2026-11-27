@@ -50,6 +50,14 @@ class ScrubState {
     /** [atEnd] asks for the very end of the list, past the last letter's apps (#169). */
     data class Placement(val letter: Char, val count: Long, val atEnd: Boolean = false)
 
+    /**
+     * How far through the letter's apps the finger is, 0 at the top of its cell on the strip to
+     * 1 at the bottom. The cells are as tall as the apps they hold, so this walks the list
+     * through the letter at a steady pace instead of leaving it parked at the first app.
+     */
+    var fraction by mutableFloatStateOf(0f)
+        private set
+
     /** True while a finger is down on an edge zone. */
     var active by mutableStateOf(false)
         private set
@@ -152,6 +160,7 @@ class ScrubState {
         // Every gesture asks afresh, so picking the same letter twice places the list twice —
         // the second time is someone who scrolled away and wants to be back there.
         placement = null
+        fraction = 0f
     }
 
     /**
@@ -176,8 +185,16 @@ class ScrubState {
      * [shiftPx] is how far the strip has been pushed, and [atEnd] that it is being pushed past
      * its last letter, which places the list at its very end rather than at any letter.
      */
-    fun update(y: Float, inwardPx: Float, letter: Char?, shiftPx: Float = 0f, atEnd: Boolean = false) {
+    fun update(
+        y: Float,
+        inwardPx: Float,
+        letter: Char?,
+        shiftPx: Float = 0f,
+        atEnd: Boolean = false,
+        fraction: Float = 0f,
+    ) {
         this.y = y
+        this.fraction = if (atEnd) 0f else fraction
         this.pull = inwardPx
         this.shift = shiftPx
         if (atEnd && letter != null) {

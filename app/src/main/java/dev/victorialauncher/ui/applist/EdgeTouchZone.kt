@@ -83,6 +83,8 @@ fun EdgeTouchZone(
     holdScroll: Boolean,
     /** Whether dragging off an end keeps the end letter rather than arming the close (#169). */
     followPastEnds: Boolean = false,
+    /** How tall each letter's cell is relative to the others, so the strip scrolls evenly. */
+    weights: List<Float>? = null,
     /** Whether the finger can carry on from the strip onto the apps and open one by letting go. */
     releaseToLaunch: Boolean = false,
     /** How much of the very edge is left to the system's own gestures. */
@@ -130,7 +132,8 @@ fun EdgeTouchZone(
                         .height((bandOnlyHeightPx(band, view.height - bottomKeepOut.value * density) / density).dp)
                 }
             )
-            .pointerInput(letters, band, hapticsEnabled, fromLeft, bandOnly, followPastEnds, releaseToLaunch) {
+            .pointerInput(letters, weights, band, hapticsEnabled, fromLeft, bandOnly, followPastEnds, releaseToLaunch) {
+                val layout = ScrubLayout.of(weights, letters.size)
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     down.consume()
@@ -157,6 +160,7 @@ fun EdgeTouchZone(
                     // letting go launches whatever is under the finger, or closes the list.
                     var onApps = false
                     var lastLetter: Char? = null
+                    var lastFraction = 0f
                     var lastStripY = down.position.y
                     var fingerY = down.position.y
                     val zoneTopPx = if (bandOnly) band.topPx else 0f
@@ -202,6 +206,7 @@ fun EdgeTouchZone(
                                 inward.coerceIn(0f, MAX_PULL_DP * density),
                                 lastLetter,
                                 shiftPx = shiftPx,
+                                fraction = lastFraction,
                             )
                             return
                         }
@@ -216,6 +221,7 @@ fun EdgeTouchZone(
                                 inward.coerceIn(0f, MAX_PULL_DP * density),
                                 lastLetter,
                                 shiftPx = shiftPx,
+                                fraction = lastFraction,
                             )
                             return
                         }
@@ -235,7 +241,8 @@ fun EdgeTouchZone(
                         val atEnd = followPastEnds && shiftPx > 0f && onStrip >= band.bottomPx - 0.5f
                         // Same geometry the visible strip uses, so the letter under the
                         // fingertip is the one that swells.
-                        val index = ScrubberGeometry.indexForY(onStrip, band.topPx, band.heightPx, letters.size)
+                        val index = layout.indexForY(onStrip, band.topPx, band.heightPx)
+                        val fraction = layout.fractionIn(index, onStrip, band.topPx, band.heightPx)
                         if (enteredBand && index != lastIndex) {
                             lastIndex = index
                             HapticUtil.tick(view, hapticsEnabled)
@@ -260,6 +267,7 @@ fun EdgeTouchZone(
                         val shownLetter = if (enteredBand && !armedToClose) letters.getOrNull(index) else null
                         if (shownLetter != null) {
                             lastLetter = shownLetter
+                            lastFraction = fraction
                             lastStripY = y
                         }
                         state.update(
@@ -268,6 +276,7 @@ fun EdgeTouchZone(
                             shownLetter,
                             shiftPx = shiftPx,
                             atEnd = atEnd,
+                            fraction = fraction,
                         )
                     }
 
@@ -356,10 +365,10 @@ fun EdgeTouchZone(
                             doubleTap()
                         } else {
                             state.lastTapUptimeMs = down.uptimeMillis
-                            // Nothing was picked, so this was a tap on bare strip. Above and
-                            // below the letters the strip is empty space like the space above
-                            // the list, and it dismisses for the same reason.
-                            if (!enteredBand && openAtDown) currentDismiss()
+                            // A plain tap on the strip, on the letters or off them, with the
+                            // list already up: it dismisses, like a tap on the space above the
+                            // list. A tap that opened the list has openAtDown false and stays.
+                            if (openAtDown) currentDismiss()
                         }
                     }
                 }

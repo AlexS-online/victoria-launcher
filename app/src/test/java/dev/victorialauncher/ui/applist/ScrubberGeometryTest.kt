@@ -73,4 +73,31 @@ class ScrubberGeometryTest {
         assertEquals(1000f, bandOnlyHeightPx(band, limitPx = 2400f), 0.01f)
         assertEquals(0f, bandOnlyHeightPx(band, limitPx = 1000f), 0.01f)
     }
+
+    @Test
+    fun cellsAreAsTallAsTheirWeights() {
+        val layout = ScrubLayout.of(listOf(1f, 3f), 2)
+        // Band 0..400: the first cell is 0..100, the second 100..400.
+        assertEquals(0, layout.indexForY(99f, 0f, 400f))
+        assertEquals(1, layout.indexForY(101f, 0f, 400f))
+        assertEquals(50f, layout.centerY(0, 0f, 400f), 0.001f)
+        assertEquals(250f, layout.centerY(1, 0f, 400f), 0.001f)
+    }
+
+    @Test
+    fun fractionWalksTheCellEvenly() {
+        val layout = ScrubLayout.of(listOf(1f, 3f), 2)
+        assertEquals(0f, layout.fractionIn(1, 100f, 0f, 400f), 0.001f)
+        assertEquals(0.5f, layout.fractionIn(1, 250f, 0f, 400f), 0.001f)
+        assertEquals(1f, layout.fractionIn(1, 400f, 0f, 400f), 0.001f)
+    }
+
+    @Test
+    fun unusableWeightsFallBackToEqualCells() {
+        val layout = ScrubLayout.of(listOf(0f, 0f), 2)
+        assertEquals(0, layout.indexForY(199f, 0f, 400f))
+        assertEquals(1, layout.indexForY(201f, 0f, 400f))
+        assertEquals(1, ScrubLayout.of(null, 2).indexForY(300f, 0f, 400f))
+    }
 }
+

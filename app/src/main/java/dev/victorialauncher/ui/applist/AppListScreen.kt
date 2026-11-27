@@ -755,6 +755,27 @@ fun AppListScreen(
         userDragged = false
     }
 
+    // Through the letter's apps as the finger goes down its cell on the strip. The cells are as
+    // tall as the apps they hold, so a steady finger moves the list at a steady pace, and the
+    // sub-row offset keeps it from stepping a whole row at a time.
+    LaunchedEffect(scrubRowIndex, scrubPlacement, displayModel) {
+        if (scrubRowIndex < 0 || scrubPlacement?.atEnd == true) return@LaunchedEffect
+        val end = displayModel.letterIndex.firstOrNull { it.second > scrubRowIndex }?.second
+            ?: displayModel.tailStart.coerceAtLeast(scrubRowIndex + 1)
+        val length = (end - scrubRowIndex).coerceAtLeast(1)
+        snapshotFlow { scrub.fraction }.collect { fraction ->
+            // Only once the letter has been placed, and not while something else is walking
+            // the list: a rest on the letter or a finger over the apps.
+            if (!scrub.active || scrub.holdScrolling || scrub.onApps) return@collect
+            if (highlightRange.isEmpty() || highlightRange.first != scrubRowIndex) return@collect
+            val visible = listState.layoutInfo.visibleItemsInfo
+            val rowPx = if (visible.isEmpty()) 0f else visible.sumOf { it.size }.toFloat() / visible.size
+            val position = fraction.coerceIn(0f, 1f) * length
+            val row = position.toInt().coerceAtMost(length - 1)
+            listState.scrollToItem(scrubRowIndex + row, ((position - row) * rowPx).toInt())
+        }
+    }
+
     // Walking on through a letter while the finger rests on it. A row at a time rather than a
     // fling, because the point is to read what goes past.
     val holdScrolling = scrub.holdScrolling
@@ -1469,6 +1490,7 @@ fun AppListScreen(
         if (showAlphabet && !searching) {
             EdgeScrubber(
                 letters = displayModel.letters,
+                weights = displayModel.letterWeights,
                 scrubY = scrubY,
                 pullPx = pullPx,
                 band = band,
