@@ -801,6 +801,10 @@ fun AppListScreen(
             // Only once the letter has been placed, and not while something else is moving
             // the list: a rest on the letter or a finger over the apps.
             if (walked || !scrub.active || scrub.onApps) return@collect
+            // The finger has already crossed into the next letter: this fraction is its, and
+            // applied to this letter it threw the list to this letter's end and back (seen in
+            // the log as a pair of jumps just before each placement).
+            if (scrub.placement != scrubPlacement) return@collect
             if (range.isEmpty() || range.first != scrubRowIndex) return@collect
             val (row, offset) = inLetterTarget(scrubRowIndex, length, fraction)
             val before = listState.firstVisibleItemIndex
