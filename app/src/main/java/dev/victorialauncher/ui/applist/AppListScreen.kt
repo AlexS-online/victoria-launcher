@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package dev.victorialauncher.ui.applist
 
+import android.util.Log
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -661,7 +662,10 @@ fun AppListScreen(
             // the compensating scroll came up short by whatever it could not find — which is
             // the shift felt as the last letter reached the edge.
             val slack = (sectionTopPx - idleTopPaddingPx).coerceAtLeast(0)
-            last != null && (
+            // Never under a finger on the strip. The list now travels through a letter as the
+            // finger does, so the last row can leave the screen mid-scrub, and the room going
+            // then shortened the list under the scroll: the list lurched to its new end.
+            !scrub.active && last != null && (
                 // Scrolled back far enough that the final row is not even on screen.
                 last.index < info.totalItemsCount - 1 ||
                     // Or it is, and there is room under it for both to go at once.
@@ -674,6 +678,7 @@ fun AppListScreen(
             // for the letter to actually arrive.
             .dropWhile { it }
             .first { it }
+        Log.d(SCRUB_LOG, "bottom room retired")
         bottomRoomLive = false
     }
 
@@ -707,6 +712,21 @@ fun AppListScreen(
         if (compensate > 0f) listState.dispatchRawDelta(-compensate)
     }
 
+    /**
+     * Where in a letter of [length] rows starting at [start] the finger's [fraction] down its
+     * cell puts the list: a row and a pixel offset into it, so the list glides rather than
+     * stepping a row at a time.
+     */
+    fun inLetterTarget(start: Int, length: Int, fraction: Float): Pair<Int, Int> {
+        val position = fraction.coerceIn(0f, 1f) * length.coerceAtLeast(1)
+        val row = position.toInt().coerceAtMost(length.coerceAtLeast(1) - 1)
+        val visible = listState.layoutInfo.visibleItemsInfo
+        // That row's own height when it is on screen; the average of what is otherwise.
+        val rowPx = visible.firstOrNull { it.index == start + row }?.size?.toFloat()
+            ?: if (visible.isEmpty()) 0f else visible.sumOf { it.size }.toFloat() / visible.size
+        return (start + row) to ((position - row) * rowPx).toInt()
+    }
+
     LaunchedEffect(scrubRowIndex, scrubPlacement, displayModel) {
         if (scrubRowIndex < 0) return@LaunchedEffect
         // The next letter's header ends this section. Walking the rows to find it copied the
@@ -727,7 +747,16 @@ fun AppListScreen(
             withFrameNanos { }
         }
 
-        listState.scrollToItem(scrubRowIndex)
+        // Straight to where the finger is in the letter, not to its first row and on from
+        // there a frame later: coming up into a letter from below, that was a jump of the whole
+        // letter up and back down again.
+        if (scrubPlacement?.atEnd == true) {
+            listState.scrollToItem(scrubRowIndex)
+        } else {
+            val (row, offset) = inLetterTarget(scrubRowIndex, end - scrubRowIndex, scrub.fraction)
+            Log.d(SCRUB_LOG, "place ${scrubPlacement?.letter} -> row $row +$offset (f=${scrub.fraction})")
+            listState.scrollToItem(row, offset)
+        }
         highlightRange = scrubRowIndex until end
         // A fresh placement opens the room again; from here the ratchet only closes it.
         gapCeilingPx = Float.MAX_VALUE
@@ -773,11 +802,13 @@ fun AppListScreen(
             // the list: a rest on the letter or a finger over the apps.
             if (walked || !scrub.active || scrub.onApps) return@collect
             if (range.isEmpty() || range.first != scrubRowIndex) return@collect
-            val visible = listState.layoutInfo.visibleItemsInfo
-            val rowPx = if (visible.isEmpty()) 0f else visible.sumOf { it.size }.toFloat() / visible.size
-            val position = fraction.coerceIn(0f, 1f) * length
-            val row = position.toInt().coerceAtMost(length - 1)
-            listState.scrollToItem(scrubRowIndex + row, ((position - row) * rowPx).toInt())
+            val (row, offset) = inLetterTarget(scrubRowIndex, length, fraction)
+            val before = listState.firstVisibleItemIndex
+            listState.scrollToItem(row, offset)
+            // A jump of more than a few rows from one finger move is the jerk being hunted.
+            if (abs(listState.firstVisibleItemIndex - before) > 3) {
+                Log.d(SCRUB_LOG, "in-letter jump $before -> ${listState.firstVisibleItemIndex} (f=$fraction)")
+            }
         }
     }
 
@@ -2012,3 +2043,5 @@ private fun SearchField(
             ),
     )
 }
+
+private const val SCRUB_LOG = "VictoriaScrub"
