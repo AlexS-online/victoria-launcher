@@ -51,6 +51,15 @@ object ScrubberGeometry {
         return ScrubBand(top, wanted)
     }
 
+    /**
+     * Smooth scrubbing, as a scrollbar: the scroll offset into the target row that puts the
+     * point under the finger ([withinRow] of the way through a row [rowPx] tall) on a line
+     * [stripFraction] of the way down a run of [runPx] — the top of the content area at the
+     * top of the strip, its bottom at the bottom. Negative means the row sits below the top.
+     */
+    fun smoothScrollOffset(withinRow: Float, rowPx: Float, stripFraction: Float, runPx: Float): Int =
+        (withinRow * rowPx - stripFraction.coerceIn(0f, 1f) * runPx).toInt()
+
     /** Screen-space center of the letter at [index], for a strip of equal cells. */
     fun letterCenterY(index: Int, topPx: Float, heightPx: Float, count: Int): Float {
         if (count <= 0) return topPx

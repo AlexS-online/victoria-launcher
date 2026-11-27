@@ -129,5 +129,17 @@ class ScrubberGeometryTest {
         val layout = ScrubLayout.uniform(3)
         assertEquals(-1f, layout.rowPositionForY(10f, 0f, 300f, listOf(0..1)), 0.001f)
     }
+
+    @Test
+    fun smoothScrollRunsFromTheLineToTheBottom() {
+        // Top of the strip: the row's top is right on the line.
+        assertEquals(0, ScrubberGeometry.smoothScrollOffset(0f, 100f, 0f, 1000f))
+        // Halfway through a row, at the top: scrolled half a row into it.
+        assertEquals(50, ScrubberGeometry.smoothScrollOffset(0.5f, 100f, 0f, 1000f))
+        // Bottom of the strip: the point under the finger sits at the bottom of the run.
+        assertEquals(-1000, ScrubberGeometry.smoothScrollOffset(0f, 100f, 1f, 1000f))
+        // Middle: halfway down.
+        assertEquals(-500, ScrubberGeometry.smoothScrollOffset(0f, 100f, 0.5f, 1000f))
+    }
 }
 

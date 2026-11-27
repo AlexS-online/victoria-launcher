@@ -165,7 +165,7 @@ fun EdgeTouchZone(
                     // letting go launches whatever is under the finger, or closes the list.
                     var onApps = false
                     var lastLetter: Char? = null
-                    var lastPosition = -1f
+                    var lastTarget: ScrubState.SmoothTarget? = null
                     var lastStripY = down.position.y
                     var fingerY = down.position.y
                     val zoneTopPx = if (bandOnly) band.topPx else 0f
@@ -211,7 +211,7 @@ fun EdgeTouchZone(
                                 inward.coerceIn(0f, MAX_PULL_DP * density),
                                 lastLetter,
                                 shiftPx = shiftPx,
-                                rowPosition = lastPosition,
+                                smoothTarget = lastTarget,
                             )
                             return
                         }
@@ -226,7 +226,7 @@ fun EdgeTouchZone(
                                 inward.coerceIn(0f, MAX_PULL_DP * density),
                                 lastLetter,
                                 shiftPx = shiftPx,
-                                rowPosition = lastPosition,
+                                smoothTarget = lastTarget,
                             )
                             return
                         }
@@ -272,15 +272,22 @@ fun EdgeTouchZone(
                         val shownLetter = if (enteredBand && !armedToClose) letters.getOrNull(index) else null
                         // Pushed past the end, the list goes to what follows the alphabet; with no
                         // letter shown (on the way out) it stays where it is.
-                        val position = when {
-                            smoothLayout == null || smoothSections == null -> -1f
-                            atEnd -> smoothSections.last().last + 1f
-                            shownLetter == null -> -1f
-                            else -> smoothLayout.rowPositionForY(onStrip, band.topPx, band.heightPx, smoothSections)
+                        val target = when {
+                            smoothLayout == null || smoothSections == null -> null
+                            atEnd -> ScrubState.SmoothTarget(smoothSections.last().last + 1f, 1f)
+                            shownLetter == null -> null
+                            else -> ScrubState.SmoothTarget(
+                                row = smoothLayout.rowPositionForY(onStrip, band.topPx, band.heightPx, smoothSections),
+                                stripFraction = if (band.heightPx > 0f) {
+                                    ((onStrip - band.topPx) / band.heightPx).coerceIn(0f, 1f)
+                                } else {
+                                    0f
+                                },
+                            )
                         }
                         if (shownLetter != null) {
                             lastLetter = shownLetter
-                            lastPosition = position
+                            lastTarget = target
                             lastStripY = y
                         }
                         state.update(
@@ -289,7 +296,7 @@ fun EdgeTouchZone(
                             shownLetter,
                             shiftPx = shiftPx,
                             atEnd = atEnd,
-                            rowPosition = position,
+                            smoothTarget = target,
                         )
                     }
 

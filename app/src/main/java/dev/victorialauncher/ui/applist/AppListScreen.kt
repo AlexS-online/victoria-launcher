@@ -281,7 +281,7 @@ fun AppListScreen(
     holdScrollSpeed: Int,
     /** Whether the rest of the list fades away while a letter is being scrubbed. */
     dimOthers: Boolean,
-    /** The strip drives the list continuously (see ScrubState.rowPosition) instead of by letter. */
+    /** The strip drives the list continuously (see ScrubState.smoothTarget) instead of by letter. */
     smoothScrub: Boolean = false,
     /** Whether a work profile's apps say so after their name. */
     markWorkApps: Boolean,
@@ -770,46 +770,36 @@ fun AppListScreen(
         userDragged = false
     }
 
-    // Smooth scrubbing: the list follows the one number the strip reports, to the pixel. This is
+    // Smooth scrubbing: the list follows the one target the strip reports, to the pixel. This is
     // the only thing that moves the list while the finger is on the strip; the letter only
     // decides what is lit.
+    //
+    // Like a scrollbar: the row under the finger is put on a line that runs from the scrub line
+    // at the top of the strip down to the bottom of the list at its bottom. So the first letter
+    // still sits on the line, the last app ends at the bottom edge with no blank under it, and
+    // in between it is all one straight run, with nothing to add or take away on the way.
     LaunchedEffect(smoothScrub) {
         if (!smoothScrub) return@LaunchedEffect
-        snapshotFlow { scrub.rowPosition }.collect { position ->
+        snapshotFlow { scrub.smoothTarget }.collect { target ->
             // Over the apps the list scrolls itself near the edges, and is left to it.
-            if (position < 0f || !scrub.active || scrub.onApps) return@collect
-            val total = listState.layoutInfo.totalItemsCount
+            if (target == null || !scrub.active || scrub.onApps) return@collect
+            val info = listState.layoutInfo
+            val total = info.totalItemsCount
             if (total == 0) return@collect
-            val row = position.toInt().coerceIn(0, total - 1)
-            val visible = listState.layoutInfo.visibleItemsInfo
+            val row = target.row.toInt().coerceIn(0, total - 1)
+            val within = (target.row - row).coerceIn(0f, 1f)
             // That row's own height when it is on screen, else what rows on screen average.
+            val visible = info.visibleItemsInfo
             val rowPx = visible.firstOrNull { it.index == row }?.size?.toFloat()
                 ?: if (visible.isEmpty()) 0f else visible.sumOf { it.size }.toFloat() / visible.size
-            listState.scrollToItem(row, ((position - row) * rowPx).toInt())
+            val top = info.beforeContentPadding
+            val run = (info.viewportSize.height - info.afterContentPadding - top).coerceAtLeast(0)
+            val offset = ScrubberGeometry.smoothScrollOffset(within, rowPx, target.stripFraction, run.toFloat())
+            // A negative offset is the row sitting lower than the top: placed at the top and
+            // then let back down by the difference, all before the next frame is drawn.
+            listState.scrollToItem(row, offset.coerceAtLeast(0))
+            if (offset < 0) listState.dispatchRawDelta(offset.toFloat())
         }
-    }
-
-    // Room under the last row for as long as the finger is on the strip, so the last letters
-    // reach the line like the first, held steady rather than added and taken away per letter.
-    // On letting go it is handed to the same ratchet a placement uses: kept only if blank is
-    // showing, and never allowed to grow from there.
-    val scrubActive = scrub.active
-    LaunchedEffect(smoothScrub, scrubActive, lastLetterToLine) {
-        if (!smoothScrub || !lastLetterToLine) return@LaunchedEffect
-        if (scrubActive) {
-            bottomRoomLive = true
-            return@LaunchedEffect
-        }
-        if (!bottomRoomLive) return@LaunchedEffect
-        withFrameNanos { }
-        val info = listState.layoutInfo
-        val last = info.visibleItemsInfo.lastOrNull()
-        val blank = if (last != null && last.index == info.totalItemsCount - 1) {
-            (info.viewportEndOffset - (last.offset + last.size)).toFloat()
-        } else {
-            0f
-        }
-        if (blank > 0f) blankCeilingPx = blank else bottomRoomLive = false
     }
 
     // Walking on through a letter while the finger rests on it. A row at a time rather than a
