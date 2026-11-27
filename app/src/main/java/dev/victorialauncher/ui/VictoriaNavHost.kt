@@ -314,6 +314,7 @@ fun VictoriaNavHost(
     val holdScroll by app.prefs.holdScroll.collectAsState(initial = false)
     val stripFollowsPastEnds by app.prefs.stripFollowsPastEnds.collectAsState(initial = false)
     val releaseToLaunch by app.prefs.releaseToLaunch.collectAsState(initial = false)
+    val smoothScrub by app.prefs.smoothScrub.collectAsState(initial = true)
     val dimOthersScrubbing by app.prefs.dimOthersScrubbing.collectAsState(initial = true)
     val markWorkApps by app.prefs.markWorkApps.collectAsState(initial = true)
     val textShadow by app.prefs.textShadow.collectAsState(initial = false)
@@ -599,6 +600,7 @@ fun VictoriaNavHost(
         holdScroll = holdScroll,
         stripFollowsPastEnds = stripFollowsPastEnds,
         releaseToLaunch = releaseToLaunch,
+        smoothScrub = smoothScrub,
         dimOthersScrubbing = dimOthersScrubbing,
         markWorkApps = markWorkApps,
         textShadow = textShadow,
@@ -811,6 +813,8 @@ fun VictoriaNavHost(
                 holdScroll = holdScroll,
                 stripFollowsPastEnds = stripFollowsPastEnds,
                 releaseToLaunch = releaseToLaunch,
+                smoothScrub = smoothScrub,
+                onSetSmoothScrub = { scope.launch { app.prefs.setSmoothScrub(it) } },
                 dimOthersScrubbing = dimOthersScrubbing,
                 markWorkApps = markWorkApps,
                 textShadow = textShadow,

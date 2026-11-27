@@ -178,6 +178,8 @@ fun SettingsScreen(
     onSetStripFollowsPastEnds: (Boolean) -> Unit,
     releaseToLaunch: Boolean,
     onSetReleaseToLaunch: (Boolean) -> Unit,
+    smoothScrub: Boolean,
+    onSetSmoothScrub: (Boolean) -> Unit,
     dimOthersScrubbing: Boolean,
     onSetDimOthersScrubbing: (Boolean) -> Unit,
     markWorkApps: Boolean,
@@ -744,6 +746,13 @@ fun SettingsScreen(
                 label = stringResource(R.string.settings_release_to_launch),
                 detail = stringResource(R.string.settings_release_to_launch_detail),
                 checked = releaseToLaunch, onCheckedChange = onSetReleaseToLaunch,
+            )
+        },
+        SettingsEntry(SettingsSection.APP_LIST, stringResource(R.string.settings_smooth_scrub), "a-z strip smooth even scroll proportional") {
+            SwitchRowWithDetail(
+                label = stringResource(R.string.settings_smooth_scrub),
+                detail = stringResource(R.string.settings_smooth_scrub_detail),
+                checked = smoothScrub, onCheckedChange = onSetSmoothScrub,
             )
         },
         SettingsEntry(SettingsSection.APP_LIST, stringResource(R.string.settings_hold_scroll), "a-z hold scroll") {

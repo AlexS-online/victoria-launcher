@@ -83,6 +83,11 @@ fun EdgeTouchZone(
     holdScroll: Boolean,
     /** Whether dragging off an end keeps the end letter rather than arming the close (#169). */
     followPastEnds: Boolean = false,
+    /**
+     * Smooth scrubbing: each letter's rows, which size its cell and which the finger's position
+     * is reported in. Null keeps the letter-by-letter strip.
+     */
+    smoothSections: List<IntRange>? = null,
     /** Whether the finger can carry on from the strip onto the apps and open one by letting go. */
     releaseToLaunch: Boolean = false,
     /** How much of the very edge is left to the system's own gestures. */
@@ -130,7 +135,10 @@ fun EdgeTouchZone(
                         .height((bandOnlyHeightPx(band, view.height - bottomKeepOut.value * density) / density).dp)
                 }
             )
-            .pointerInput(letters, band, hapticsEnabled, fromLeft, bandOnly, followPastEnds, releaseToLaunch) {
+            .pointerInput(letters, smoothSections, band, hapticsEnabled, fromLeft, bandOnly, followPastEnds, releaseToLaunch) {
+                val smoothLayout = smoothSections?.let {
+                    ScrubLayout.forStrip(letters, it, band.heightPx, density)
+                }
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     down.consume()
@@ -157,6 +165,7 @@ fun EdgeTouchZone(
                     // letting go launches whatever is under the finger, or closes the list.
                     var onApps = false
                     var lastLetter: Char? = null
+                    var lastPosition = -1f
                     var lastStripY = down.position.y
                     var fingerY = down.position.y
                     val zoneTopPx = if (bandOnly) band.topPx else 0f
@@ -202,6 +211,7 @@ fun EdgeTouchZone(
                                 inward.coerceIn(0f, MAX_PULL_DP * density),
                                 lastLetter,
                                 shiftPx = shiftPx,
+                                rowPosition = lastPosition,
                             )
                             return
                         }
@@ -216,6 +226,7 @@ fun EdgeTouchZone(
                                 inward.coerceIn(0f, MAX_PULL_DP * density),
                                 lastLetter,
                                 shiftPx = shiftPx,
+                                rowPosition = lastPosition,
                             )
                             return
                         }
@@ -235,7 +246,8 @@ fun EdgeTouchZone(
                         val atEnd = followPastEnds && shiftPx > 0f && onStrip >= band.bottomPx - 0.5f
                         // Same geometry the visible strip uses, so the letter under the
                         // fingertip is the one that swells.
-                        val index = ScrubberGeometry.indexForY(onStrip, band.topPx, band.heightPx, letters.size)
+                        val index = smoothLayout?.indexForY(onStrip, band.topPx, band.heightPx)
+                            ?: ScrubberGeometry.indexForY(onStrip, band.topPx, band.heightPx, letters.size)
                         if (enteredBand && index != lastIndex) {
                             lastIndex = index
                             HapticUtil.tick(view, hapticsEnabled)
@@ -258,8 +270,17 @@ fun EdgeTouchZone(
                         // No letter while the list is on its way out: placing it at A as
                         // you leave is work nobody asked for and nobody sees.
                         val shownLetter = if (enteredBand && !armedToClose) letters.getOrNull(index) else null
+                        // Pushed past the end, the list goes to what follows the alphabet; with no
+                        // letter shown (on the way out) it stays where it is.
+                        val position = when {
+                            smoothLayout == null || smoothSections == null -> -1f
+                            atEnd -> smoothSections.last().last + 1f
+                            shownLetter == null -> -1f
+                            else -> smoothLayout.rowPositionForY(onStrip, band.topPx, band.heightPx, smoothSections)
+                        }
                         if (shownLetter != null) {
                             lastLetter = shownLetter
+                            lastPosition = position
                             lastStripY = y
                         }
                         state.update(
@@ -268,6 +289,7 @@ fun EdgeTouchZone(
                             shownLetter,
                             shiftPx = shiftPx,
                             atEnd = atEnd,
+                            rowPosition = position,
                         )
                     }
 
@@ -291,7 +313,8 @@ fun EdgeTouchZone(
                     var holdJob: Job? = null
                     fun armHold() {
                         holdJob?.cancel()
-                        if (!holdScroll) return
+                        // Not with smooth scrubbing: a still finger there means a still list.
+                        if (!holdScroll || smoothLayout != null) return
                         holdJob = scope.launch {
                             delay(HOLD_START_MS)
                             // Read when it fires, not when it was armed: by now the finger may

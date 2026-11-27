@@ -50,6 +50,14 @@ class ScrubState {
     /** [atEnd] asks for the very end of the list, past the last letter's apps (#169). */
     data class Placement(val letter: Char, val count: Long, val atEnd: Boolean = false)
 
+    /**
+     * With smooth scrubbing, where in the list the finger is pointing, in rows (37.4 is four
+     * tenths of the way through row 37); -1 when it is pointing nowhere. One number for the
+     * list to follow, so nothing else has to agree with it.
+     */
+    var rowPosition by mutableFloatStateOf(-1f)
+        private set
+
     /** True while a finger is down on an edge zone. */
     var active by mutableStateOf(false)
         private set
@@ -152,6 +160,7 @@ class ScrubState {
         // Every gesture asks afresh, so picking the same letter twice places the list twice —
         // the second time is someone who scrolled away and wants to be back there.
         placement = null
+        rowPosition = -1f
     }
 
     /**
@@ -176,8 +185,16 @@ class ScrubState {
      * [shiftPx] is how far the strip has been pushed, and [atEnd] that it is being pushed past
      * its last letter, which places the list at its very end rather than at any letter.
      */
-    fun update(y: Float, inwardPx: Float, letter: Char?, shiftPx: Float = 0f, atEnd: Boolean = false) {
+    fun update(
+        y: Float,
+        inwardPx: Float,
+        letter: Char?,
+        shiftPx: Float = 0f,
+        atEnd: Boolean = false,
+        rowPosition: Float = -1f,
+    ) {
         this.y = y
+        this.rowPosition = rowPosition
         this.pull = inwardPx
         this.shift = shiftPx
         if (atEnd && letter != null) {

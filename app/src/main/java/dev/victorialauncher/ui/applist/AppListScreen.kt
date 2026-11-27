@@ -281,6 +281,8 @@ fun AppListScreen(
     holdScrollSpeed: Int,
     /** Whether the rest of the list fades away while a letter is being scrubbed. */
     dimOthers: Boolean,
+    /** The strip drives the list continuously (see ScrubState.rowPosition) instead of by letter. */
+    smoothScrub: Boolean = false,
     /** Whether a work profile's apps say so after their name. */
     markWorkApps: Boolean,
     /** Width of the live edge zone, which rows have to clear whether or not letters show. */
@@ -661,7 +663,10 @@ fun AppListScreen(
             // the compensating scroll came up short by whatever it could not find — which is
             // the shift felt as the last letter reached the edge.
             val slack = (sectionTopPx - idleTopPaddingPx).coerceAtLeast(0)
-            last != null && (
+            // Never under a finger when scrubbing smoothly: the list then travels through the
+            // letters with it, the last row can leave the screen mid-scrub, and taking the room
+            // away then would shorten the list under the scroll.
+            !(smoothScrub && scrub.active) && last != null && (
                 // Scrolled back far enough that the final row is not even on screen.
                 last.index < info.totalItemsCount - 1 ||
                     // Or it is, and there is room under it for both to go at once.
@@ -722,6 +727,16 @@ fun AppListScreen(
         // are enough to push it up to the line, and the last several letters of an alphabet are
         // never enough between them. Guessing by position put the final letter on the line and
         // left the four or five before it short.
+        if (smoothScrub) {
+            // The list is already being moved by the finger (below); a placement only says
+            // which letter is lit and opens the ratchets afresh for it.
+            highlightRange = scrubRowIndex until end
+            gapCeilingPx = Float.MAX_VALUE
+            blankCeilingPx = Float.MAX_VALUE
+            userDragged = false
+            return@LaunchedEffect
+        }
+
         if (lastLetterToLine && !bottomRoomLive) {
             bottomRoomLive = true
             withFrameNanos { }
@@ -753,6 +768,48 @@ fun AppListScreen(
         }
         // This placement is fresh, so the next drag is the one that retires it.
         userDragged = false
+    }
+
+    // Smooth scrubbing: the list follows the one number the strip reports, to the pixel. This is
+    // the only thing that moves the list while the finger is on the strip; the letter only
+    // decides what is lit.
+    LaunchedEffect(smoothScrub) {
+        if (!smoothScrub) return@LaunchedEffect
+        snapshotFlow { scrub.rowPosition }.collect { position ->
+            // Over the apps the list scrolls itself near the edges, and is left to it.
+            if (position < 0f || !scrub.active || scrub.onApps) return@collect
+            val total = listState.layoutInfo.totalItemsCount
+            if (total == 0) return@collect
+            val row = position.toInt().coerceIn(0, total - 1)
+            val visible = listState.layoutInfo.visibleItemsInfo
+            // That row's own height when it is on screen, else what rows on screen average.
+            val rowPx = visible.firstOrNull { it.index == row }?.size?.toFloat()
+                ?: if (visible.isEmpty()) 0f else visible.sumOf { it.size }.toFloat() / visible.size
+            listState.scrollToItem(row, ((position - row) * rowPx).toInt())
+        }
+    }
+
+    // Room under the last row for as long as the finger is on the strip, so the last letters
+    // reach the line like the first, held steady rather than added and taken away per letter.
+    // On letting go it is handed to the same ratchet a placement uses: kept only if blank is
+    // showing, and never allowed to grow from there.
+    val scrubActive = scrub.active
+    LaunchedEffect(smoothScrub, scrubActive, lastLetterToLine) {
+        if (!smoothScrub || !lastLetterToLine) return@LaunchedEffect
+        if (scrubActive) {
+            bottomRoomLive = true
+            return@LaunchedEffect
+        }
+        if (!bottomRoomLive) return@LaunchedEffect
+        withFrameNanos { }
+        val info = listState.layoutInfo
+        val last = info.visibleItemsInfo.lastOrNull()
+        val blank = if (last != null && last.index == info.totalItemsCount - 1) {
+            (info.viewportEndOffset - (last.offset + last.size)).toFloat()
+        } else {
+            0f
+        }
+        if (blank > 0f) blankCeilingPx = blank else bottomRoomLive = false
     }
 
     // Walking on through a letter while the finger rests on it. A row at a time rather than a
@@ -1469,6 +1526,7 @@ fun AppListScreen(
         if (showAlphabet && !searching) {
             EdgeScrubber(
                 letters = displayModel.letters,
+                smoothSections = if (smoothScrub) displayModel.letterRows else null,
                 scrubY = scrubY,
                 pullPx = pullPx,
                 band = band,

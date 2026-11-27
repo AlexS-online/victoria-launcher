@@ -454,6 +454,8 @@
     <string name="widget_clock_notifications_gap">Отступ над счётчиком</string>
     <string name="widget_clock_battery_gap">Отступ над батареей</string>
     <string name="settings_release_to_launch">Открывать, отпустив палец</string>
+    <string name="settings_smooth_scrub">Плавная прокрутка полосой</string>
+    <string name="settings_smooth_scrub_detail">Каждой букве достаётся столько полосы, сколько у неё приложений, и список плавно едет за пальцем, а не прыгает от буквы к букве. Удержание пальца на букве список дальше не ведёт</string>
     <string name="settings_release_to_launch_detail">Уведите палец с букв на приложения и отпустите его на нужном, чтобы открыть</string>
     <string name="settings_sort_by_color">Сортировать по цвету иконок</string>
     <string name="settings_sort_by_color_detail">Приложения идут по цвету иконок, а вместо букв A–Z — цветная полоса: радуга, затем от белого к чёрному</string>

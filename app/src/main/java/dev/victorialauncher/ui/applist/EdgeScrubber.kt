@@ -135,6 +135,8 @@ fun EdgeScrubber(
     reach: Float = 1f,
     /** How far a finger run off an end has pushed the column, read in the draw phase (#169). */
     shiftPx: () -> Float = { 0f },
+    /** Smooth scrubbing: each letter's rows, so its cell is as tall as they are. */
+    smoothSections: List<IntRange>? = null,
 ) {
     if (letters.isEmpty()) return
     val density = LocalDensity.current.density
@@ -143,9 +145,14 @@ fun EdgeScrubber(
     val sigmaPx = 2.6f * spacingPx
     val bellPx = BELL_AMPLITUDE_DP * reach * density
 
-    val centerYs = remember(letters.size, band.topPx, band.heightPx) {
-        FloatArray(letters.size) {
-            ScrubberGeometry.letterCenterY(it, band.topPx, band.heightPx, letters.size)
+    val centerYs = remember(letters, smoothSections, band.topPx, band.heightPx, density) {
+        if (smoothSections == null) {
+            FloatArray(letters.size) {
+                ScrubberGeometry.letterCenterY(it, band.topPx, band.heightPx, letters.size)
+            }
+        } else {
+            val layout = ScrubLayout.forStrip(letters, smoothSections, band.heightPx, density)
+            FloatArray(letters.size) { layout.centerY(it, band.topPx, band.heightPx) }
         }
     }
     val sim = remember(letters.size) { RippleString(letters.size) }
@@ -198,7 +205,8 @@ fun EdgeScrubber(
         ColorRibbon(
             swatches = remember(letters) { letters.map { scrubSwatch(it)!! } },
             centerYs = centerYs,
-            spacingPx = spacingPx,
+            topPx = band.topPx,
+            bottomPx = band.bottomPx,
             sigmaPx = sigmaPx,
             bellPx = bellPx,
             style = style,
@@ -278,7 +286,8 @@ private const val RIBBON_WIDTH_DP = 8f
 private fun ColorRibbon(
     swatches: List<Color>,
     centerYs: FloatArray,
-    spacingPx: Float,
+    topPx: Float,
+    bottomPx: Float,
     sigmaPx: Float,
     bellPx: Float,
     style: ScrubStyle,
@@ -314,10 +323,17 @@ private fun ColorRibbon(
         // Catmull-Rom through the ripple's samples, so the wave between them is a curve too.
         fun rippleAt(y: Float): Float {
             val samples = u ?: return 0f
-            val f = ((y - centerYs[0]) / spacingPx).coerceIn(0f, (n - 1).toFloat())
-            val i = f.toInt().coerceAtMost(n - 2).coerceAtLeast(0)
             if (n == 1) return samples[0]
-            val t = f - i
+            // Found against the centers themselves: with smooth scrubbing the steps are not
+            // all the same height.
+            var lo = 0
+            var hi = n - 2
+            while (lo < hi) {
+                val mid = (lo + hi + 1) ushr 1
+                if (centerYs[mid] <= y) lo = mid else hi = mid - 1
+            }
+            val i = lo
+            val t = ((y - centerYs[i]) / (centerYs[i + 1] - centerYs[i])).coerceIn(0f, 1f)
             val p0 = samples[(i - 1).coerceAtLeast(0)]
             val p1 = samples[i]
             val p2 = samples[i + 1]
@@ -336,8 +352,8 @@ private fun ColorRibbon(
         val cellW = 20.dp.toPx()
         val restX = if (side == EdgeSide.LEFT) (cellW - barW) / 2f else size.width - (cellW + barW) / 2f
         val dir = if (side == EdgeSide.LEFT) 1f else -1f
-        val top = centerYs[0] - spacingPx / 2f
-        val bottom = centerYs[n - 1] + spacingPx / 2f
+        val top = topPx
+        val bottom = bottomPx
         val step = RIBBON_STEP_DP.dp.toPx()
 
         path.reset()

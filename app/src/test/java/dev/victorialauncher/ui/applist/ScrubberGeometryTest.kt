@@ -73,4 +73,61 @@ class ScrubberGeometryTest {
         assertEquals(1000f, bandOnlyHeightPx(band, limitPx = 2400f), 0.01f)
         assertEquals(0f, bandOnlyHeightPx(band, limitPx = 1000f), 0.01f)
     }
+
+    @Test
+    fun cellsAreAsTallAsTheirWeights() {
+        val layout = ScrubLayout.of(listOf(1f, 3f), 2)
+        // Band 0..400: the first cell is 0..100, the second 100..400.
+        assertEquals(0, layout.indexForY(99f, 0f, 400f))
+        assertEquals(1, layout.indexForY(101f, 0f, 400f))
+        assertEquals(50f, layout.centerY(0, 0f, 400f), 0.001f)
+        assertEquals(250f, layout.centerY(1, 0f, 400f), 0.001f)
+    }
+
+    @Test
+    fun fractionWalksTheCellEvenly() {
+        val layout = ScrubLayout.of(listOf(1f, 3f), 2)
+        assertEquals(0f, layout.fractionIn(1, 100f, 0f, 400f), 0.001f)
+        assertEquals(0.5f, layout.fractionIn(1, 250f, 0f, 400f), 0.001f)
+        assertEquals(1f, layout.fractionIn(1, 400f, 0f, 400f), 0.001f)
+    }
+
+    @Test
+    fun unusableWeightsFallBackToEqualCells() {
+        val layout = ScrubLayout.of(listOf(0f, 0f), 2)
+        assertEquals(0, layout.indexForY(199f, 0f, 400f))
+        assertEquals(1, layout.indexForY(201f, 0f, 400f))
+        assertEquals(1, ScrubLayout.of(null, 2).indexForY(300f, 0f, 400f))
+    }
+
+    @Test
+    fun smallCellsAreHeldAtTheMinimum() {
+        // 1 app against 99: proportionally 1% of the band, held at 10% instead.
+        val layout = ScrubLayout.of(listOf(1f, 99f), 2, minFraction = 0.1f)
+        assertEquals(20f, layout.centerY(0, 0f, 400f), 0.001f)
+        assertEquals(40f, layout.bottomY(0, 0f, 400f), 0.001f)
+        assertEquals(400f, layout.bottomY(1, 0f, 400f), 0.001f)
+    }
+
+    @Test
+    fun rowPositionIsContinuousAcrossLetters() {
+        // Two letters: rows 0..9 and 10..39, so cells of 100 and 300 px in a 400 px band.
+        val sections = listOf(0..9, 10..39)
+        val layout = ScrubLayout.of(sections.map { it.count().toFloat() }, 2)
+        assertEquals(0f, layout.rowPositionForY(0f, 0f, 400f, sections), 0.001f)
+        assertEquals(5f, layout.rowPositionForY(50f, 0f, 400f, sections), 0.001f)
+        // Either side of the boundary lands on the same row.
+        assertEquals(10f, layout.rowPositionForY(99.999f, 0f, 400f, sections), 0.01f)
+        assertEquals(10f, layout.rowPositionForY(100.001f, 0f, 400f, sections), 0.01f)
+        // Steady finger, steady list: 10 px is one row in both letters.
+        assertEquals(25f, layout.rowPositionForY(250f, 0f, 400f, sections), 0.001f)
+        assertEquals(40f, layout.rowPositionForY(400f, 0f, 400f, sections), 0.001f)
+    }
+
+    @Test
+    fun rowPositionNeedsOneSectionPerCell() {
+        val layout = ScrubLayout.uniform(3)
+        assertEquals(-1f, layout.rowPositionForY(10f, 0f, 300f, listOf(0..1)), 0.001f)
+    }
 }
+

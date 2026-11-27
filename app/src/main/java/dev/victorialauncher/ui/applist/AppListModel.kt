@@ -58,6 +58,16 @@ data class AppListModel(
 ) {
     /** The scrubber's alphabet, derived once here rather than at each place that draws it. */
     val letters: List<Char> = letterIndex.map { it.first }
+
+    /**
+     * The rows each letter spans, from its own first row (its header, when there are headers)
+     * up to the next letter's, the last one up to where the alphabet ends. Smooth scrubbing
+     * sizes the strip's cells by these and scrolls through them.
+     */
+    val letterRows: List<IntRange> = letterIndex.mapIndexed { i, (_, start) ->
+        val end = letterIndex.getOrNull(i + 1)?.second ?: tailStart
+        start until end.coerceAtLeast(start + 1)
+    }
 }
 
 /**

@@ -1003,6 +1003,7 @@ fun HomeRoute(
                 searchFocusTick = searchFocusTick,
                 holdScrollSpeed = settings.holdScrollSpeed,
                 dimOthers = settings.dimOthersScrubbing,
+                smoothScrub = settings.smoothScrub,
                 markWorkApps = settings.markWorkApps,
                 textShadow = settings.textShadow,
                 textShadowStrength = settings.textShadowStrength,
@@ -1046,6 +1047,7 @@ fun HomeRoute(
         if (showIdleStripNow) {
             EdgeScrubber(
                 letters = listModel.letters,
+                smoothSections = if (settings.smoothScrub) listModel.letterRows else null,
                 scrubY = { null },
                 pullPx = { 0f },
                 band = band,
@@ -1177,6 +1179,7 @@ fun HomeRoute(
                     insetDp = insetDp.dp,
                     bottomKeepOut = keepOut,
                     letters = listModel.letters,
+                    smoothSections = if (settings.smoothScrub) listModel.letterRows else null,
                     band = band,
                     bandOnly = settings.edgeZoneBandOnly,
                     holdScroll = settings.holdScroll,
@@ -1249,6 +1252,7 @@ data class HomeSettings(
     val holdScroll: Boolean,
     val stripFollowsPastEnds: Boolean,
     val releaseToLaunch: Boolean,
+    val smoothScrub: Boolean,
     val holdScrollSpeed: Int,
     val dimOthersScrubbing: Boolean,
     val markWorkApps: Boolean,

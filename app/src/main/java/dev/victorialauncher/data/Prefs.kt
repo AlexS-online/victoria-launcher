@@ -259,6 +259,7 @@ class Prefs(private val context: Context) {
         val HOLD_SCROLL = booleanPreferencesKey("hold_scroll")
         val STRIP_FOLLOWS_PAST_ENDS = booleanPreferencesKey("strip_follows_past_ends")
         val RELEASE_TO_LAUNCH = booleanPreferencesKey("release_to_launch")
+        val SMOOTH_SCRUB = booleanPreferencesKey("smooth_scrub")
         val WEB_SEARCH_FALLBACK = booleanPreferencesKey("web_search_fallback")
         val SWIPE_UP_OPENS_SEARCH = booleanPreferencesKey("swipe_up_opens_search")
         val HOLD_SCROLL_SPEED = intPreferencesKey("hold_scroll_speed")
@@ -888,6 +889,10 @@ class Prefs(private val context: Context) {
      */
     val releaseToLaunch: Flow<Boolean> =
         data.map { it[Keys.RELEASE_TO_LAUNCH] ?: false }.distinctUntilChanged()
+
+    /** The strip drives the list continuously, cells as tall as their apps, instead of by letter. */
+    val smoothScrub: Flow<Boolean> =
+        data.map { it[Keys.SMOOTH_SCRUB] ?: true }.distinctUntilChanged()
 
     /** Whether resting a finger on a letter walks the list on through that letter's apps. */
     val holdScroll: Flow<Boolean> =
@@ -1563,6 +1568,10 @@ class Prefs(private val context: Context) {
 
     suspend fun setReleaseToLaunch(v: Boolean) {
         context.dataStore.edit { it[Keys.RELEASE_TO_LAUNCH] = v }
+    }
+
+    suspend fun setSmoothScrub(v: Boolean) {
+        context.dataStore.edit { it[Keys.SMOOTH_SCRUB] = v }
     }
 
     suspend fun setHoldScroll(v: Boolean) {
