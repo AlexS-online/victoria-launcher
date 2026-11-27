@@ -763,11 +763,16 @@ fun AppListScreen(
         val end = displayModel.letterIndex.firstOrNull { it.second > scrubRowIndex }?.second
             ?: displayModel.tailStart.coerceAtLeast(scrubRowIndex + 1)
         val length = (end - scrubRowIndex).coerceAtLeast(1)
-        snapshotFlow { scrub.fraction }.collect { fraction ->
-            // Only once the letter has been placed, and not while something else is walking
+        // Once a rest on the letter has walked the list on, the finger no longer says where in
+        // the letter the list is; following it again would throw the list back.
+        var walked = false
+        // The range is read too, so a finger already still when the letter lands still counts.
+        snapshotFlow { Triple(scrub.fraction, highlightRange, scrub.holdScrolling) }.collect { (fraction, range, holding) ->
+            if (holding) walked = true
+            // Only once the letter has been placed, and not while something else is moving
             // the list: a rest on the letter or a finger over the apps.
-            if (!scrub.active || scrub.holdScrolling || scrub.onApps) return@collect
-            if (highlightRange.isEmpty() || highlightRange.first != scrubRowIndex) return@collect
+            if (walked || !scrub.active || scrub.onApps) return@collect
+            if (range.isEmpty() || range.first != scrubRowIndex) return@collect
             val visible = listState.layoutInfo.visibleItemsInfo
             val rowPx = if (visible.isEmpty()) 0f else visible.sumOf { it.size }.toFloat() / visible.size
             val position = fraction.coerceIn(0f, 1f) * length

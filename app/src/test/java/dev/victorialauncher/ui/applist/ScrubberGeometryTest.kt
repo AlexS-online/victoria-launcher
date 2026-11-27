@@ -99,5 +99,14 @@ class ScrubberGeometryTest {
         assertEquals(1, layout.indexForY(201f, 0f, 400f))
         assertEquals(1, ScrubLayout.of(null, 2).indexForY(300f, 0f, 400f))
     }
+
+    @Test
+    fun smallCellsAreHeldAtTheMinimum() {
+        // 1 app against 99: proportionally 1% of the band, held at 10% instead.
+        val layout = ScrubLayout.of(listOf(1f, 99f), 2, minFraction = 0.1f)
+        assertEquals(20f, layout.centerY(0, 0f, 400f), 0.001f)
+        assertEquals(40f, layout.bottomY(0, 0f, 400f), 0.001f)
+        assertEquals(400f, layout.bottomY(1, 0f, 400f), 0.001f)
+    }
 }
 

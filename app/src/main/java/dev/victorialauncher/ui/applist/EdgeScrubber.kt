@@ -145,7 +145,9 @@ fun EdgeScrubber(
     val sigmaPx = 2.6f * spacingPx
     val bellPx = BELL_AMPLITUDE_DP * reach * density
 
-    val layout = remember(weights, letters.size) { ScrubLayout.of(weights, letters.size) }
+    val layout = remember(letters, weights, band.heightPx, density) {
+        ScrubLayout.forStrip(letters, weights, band.heightPx, density)
+    }
     val centerYs = remember(layout, band.topPx, band.heightPx) {
         FloatArray(letters.size) { layout.centerY(it, band.topPx, band.heightPx) }
     }

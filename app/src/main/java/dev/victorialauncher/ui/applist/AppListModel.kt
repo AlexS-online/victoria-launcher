@@ -60,11 +60,9 @@ data class AppListModel(
     val letters: List<Char> = letterIndex.map { it.first }
 
     /**
-     * How tall each letter's cell on the strip should be, in proportion to the apps under it,
-     * so that a finger moving at a steady pace moves the list at a steady pace.
-     *
-     * A floor keeps a letter with one app from shrinking to nothing: the letters are drawn as
-     * text and have to stay readable, while the color ribbon has no text and may thin out more.
+     * How many rows each letter holds, which is how tall its cell on the strip is, so a finger
+     * moving at a steady pace moves the list at a steady pace. The strip keeps every cell at a
+     * readable minimum itself (ScrubLayout.forStrip).
      */
     val letterWeights: List<Float> = run {
         if (letterIndex.isEmpty()) return@run emptyList()
@@ -76,12 +74,7 @@ data class AppListModel(
             }
             n.toFloat()
         }
-        val total = counts.sum()
-        if (total <= 0f) return@run counts.map { 1f }
-        val mean = total / counts.size
-        val ribbon = letters.all { scrubSwatch(it) != null }
-        val floor = mean * (if (ribbon) 0.15f else 0.6f)
-        counts.map { maxOf(it, floor) }
+        counts
     }
 }
 

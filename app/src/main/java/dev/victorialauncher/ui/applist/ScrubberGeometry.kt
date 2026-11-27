@@ -115,19 +115,46 @@ class ScrubLayout private constructor(private val bounds: FloatArray) {
         /** Equal cells, when nothing is known about what the letters hold. */
         fun uniform(count: Int) = ScrubLayout(FloatArray(count + 1) { if (count == 0) 0f else it / count.toFloat() })
 
-        /** One cell per weight, tall in proportion to it. Falls back to equal cells if unusable. */
-        fun of(weights: List<Float>?, count: Int): ScrubLayout {
+        /**
+         * One cell per weight, tall in proportion to it, but none shorter than [minFraction] of
+         * the band: a letter with one app still has to be readable and hittable. Cells held at
+         * the minimum are taken out and the rest share what is left, until nothing changes.
+         * Falls back to equal cells if the weights are unusable or the minimum leaves no room.
+         */
+        fun of(weights: List<Float>?, count: Int, minFraction: Float = 0f): ScrubLayout {
             if (weights == null || weights.size != count || count == 0) return uniform(count)
-            val total = weights.sum()
-            if (!(total > 0f)) return uniform(count)
-            val b = FloatArray(count + 1)
-            var acc = 0f
-            for (i in 0 until count) {
-                b[i] = acc / total
-                acc += weights[i].coerceAtLeast(0f)
+            val w = FloatArray(count) { weights[it].takeIf { v -> v.isFinite() }?.coerceAtLeast(0f) ?: 0f }
+            val min = minFraction.coerceAtLeast(0f)
+            if (w.sum() <= 0f || min * count >= 1f) return uniform(count)
+            val share = FloatArray(count)
+            val pinned = BooleanArray(count)
+            while (true) {
+                val freeWeight = (0 until count).filter { !pinned[it] }.sumOf { w[it].toDouble() }.toFloat()
+                val freeRoom = 1f - min * pinned.count { it }
+                var changed = false
+                for (i in 0 until count) {
+                    if (pinned[i]) { share[i] = min; continue }
+                    share[i] = if (freeWeight > 0f) freeRoom * w[i] / freeWeight else freeRoom / (count - pinned.count { it })
+                    if (share[i] < min) { pinned[i] = true; changed = true }
+                }
+                if (!changed) break
             }
+            val b = FloatArray(count + 1)
+            for (i in 0 until count) b[i + 1] = b[i] + share[i]
             b[count] = 1f
             return ScrubLayout(b)
         }
+
+        /** The layout the strip is drawn with and the touch zone reads, so the two agree. */
+        fun forStrip(letters: List<Char>, weights: List<Float>?, bandHeightPx: Float, density: Float): ScrubLayout {
+            if (bandHeightPx <= 0f) return uniform(letters.size)
+            // The same minimums the band itself is sized by, per letter or per color step.
+            val ribbon = letters.isNotEmpty() && letters.all { scrubSwatch(it) != null }
+            val minPx = (if (ribbon) MIN_COLOR_CELL_DP else MIN_LETTER_CELL_DP) * density
+            return of(weights, letters.size, minPx / bandHeightPx)
+        }
+
+        private const val MIN_LETTER_CELL_DP = 15f
+        private const val MIN_COLOR_CELL_DP = 5f
     }
 }
