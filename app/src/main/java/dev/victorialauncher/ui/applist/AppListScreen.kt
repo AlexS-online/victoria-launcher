@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package dev.victorialauncher.ui.applist
 
-import android.util.Log
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -822,7 +821,6 @@ fun AppListScreen(
             }
             val anchorOffset = if (offset >= 0) offset else (above - need).toInt().coerceAtLeast(0)
             listState.scrollToItem(anchorRow, anchorOffset)
-            Log.d(SCRUB_LOG, "f=${target.stripFraction} row=${target.row} -> $anchorRow+$anchorOffset first=${listState.firstVisibleItemIndex}+${listState.firstVisibleItemScrollOffset}")
         }
     }
 
@@ -2057,5 +2055,3 @@ private fun SearchField(
             ),
     )
 }
-
-private const val SCRUB_LOG = "VictoriaScrub"
