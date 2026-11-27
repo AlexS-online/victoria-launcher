@@ -277,6 +277,8 @@ fun EdgeTouchZone(
                     // travelling is a scrub, letting go without it is a tap that a second tap
                     // turns into a lock. Opening the list on the down is untouched by either.
                     var moved = false
+                    // When the finger came up, so a long rest on a letter is not read as a tap.
+                    var upAt = down.uptimeMillis
                     // Where the finger last actually went somewhere, and when. Resting on a
                     // letter still delivers events — a fingertip is never quite still — so the
                     // hold is judged by distance travelled rather than by events arriving.
@@ -306,7 +308,10 @@ fun EdgeTouchZone(
                     while (true) {
                         val event = awaitPointerEvent()
                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                        if (!change.pressed) break
+                        if (!change.pressed) {
+                            upAt = change.uptimeMillis
+                            break
+                        }
                         if ((change.position - restAt).getDistance() > HOLD_SLOP_DP * density) {
                             // Moved on: this is a scrub again, not a rest. The clock restarts
                             // from here rather than from where the finger first landed.
@@ -356,10 +361,11 @@ fun EdgeTouchZone(
                             doubleTap()
                         } else {
                             state.lastTapUptimeMs = down.uptimeMillis
-                            // Nothing was picked, so this was a tap on bare strip. Above and
-                            // below the letters the strip is empty space like the space above
-                            // the list, and it dismisses for the same reason.
-                            if (!enteredBand && openAtDown) currentDismiss()
+                            // A quick tap on the strip, on the letters or off them, with the list
+                            // already up: it dismisses, like a tap on the space above the list.
+                            // A tap that opened the list has openAtDown false and stays.
+                            val quick = upAt - down.uptimeMillis < viewConfiguration.longPressTimeoutMillis
+                            if (openAtDown && quick) currentDismiss()
                         }
                     }
                 }
